@@ -62,9 +62,9 @@ Tuned for the measured server (**RTX 4090 24 GB, i7-13700K = 24 threads,
 125 GB RAM but shared — ~40 GB typically free, Ubuntu 24.04, CUDA-13 driver**):
 - **PPO** (Pong/VizDoom): `n_envs: 16` parallel `SubprocVecEnv` rollouts +
   `batch_size: 512`, to keep the GPU fed while the CPU steps environments.
-- **DQN** (Pong/VizDoom): `buffer_size: 300_000` (~17 GB RAM with frame-stacked
-  uint8 obs) — sized to fit the *shared* RAM. Raise toward 1,000,000 only if the
-  box is dedicated and RAM is free.
+- **DQN** (Pong/VizDoom): `buffer_size: 500_000` (~28 GB RAM with frame-stacked
+  uint8 obs; pre-allocated, not dynamic) — fits the *shared* ~42 GB free. Raise
+  toward 1,000,000 only if the box is dedicated.
 - **Python:** the venv is built from `python3.12` (not the conda base 3.13) for
   the widest torch/vizdoom wheel coverage; the CUDA-13 driver runs cu124 wheels.
 - `common/utils.configure_torch_perf()` turns on cuDNN autotuning + TF32 tensor

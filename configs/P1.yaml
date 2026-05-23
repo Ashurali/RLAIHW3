@@ -18,9 +18,10 @@ device: cuda
 record_gif: true
 algo_kwargs:
   learning_rate: 1.0e-4
-  buffer_size: 300000         # "large" buffer (~17GB RAM, frame-stacked uint8),
-                              # sized for the shared server (~42GB free). Raise to
-                              # 1000000 if the box is dedicated. P4 uses a small one.
+  buffer_size: 500000         # "large" buffer (~28GB RAM, frame-stacked uint8;
+                              # pre-allocated, not dynamic). Fits the shared server
+                              # (~42GB free). Raise to 1000000 only if dedicated.
+                              # P4 uses a small buffer for the ablation.
   learning_starts: 100000
   batch_size: 32
   gamma: 0.99

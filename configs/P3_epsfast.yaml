@@ -18,7 +18,7 @@ device: cuda
 record_gif: true
 algo_kwargs:
   learning_rate: 1.0e-4
-  buffer_size: 300000         # match P1 (sized for shared server RAM)
+  buffer_size: 500000         # match P1 (~28GB; sized for shared server RAM)
   learning_starts: 100000
   batch_size: 32
   gamma: 0.99
