@@ -1,0 +1,32 @@
+# V1 - VizDoom Defend-the-Center, PPO (Tier A): the 3D headline baseline.
+# Reference for Task 2. Also the reused arm for:
+#   V2 = "Discrete actions", V4 = "frame stack 4", V5 = "PPO".
+# Run >=3 seeds:  --seed 0 / 1 / 2
+# NOTE: confirm env id on first run (VizdoomDefendCenter-v0 expected).
+exp_id: V1_defendcenter
+task: vizdoom
+algo: ppo
+env_id: VizdoomDefendCenter-v0
+policy: CnnPolicy
+n_envs: 8
+n_stack: 4
+frame_skip: 4
+obs_shape: [84, 84]
+grayscale: true
+seed: 0
+total_timesteps: 2000000      # ~30-90 min on an RTX 4090
+eval_freq: 100000
+eval_episodes: 20
+checkpoint_freq: 500000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: 2.5e-4
+  n_steps: 128
+  batch_size: 256
+  n_epochs: 4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5

@@ -1,0 +1,32 @@
+# V5 - VizDoom Defend-the-Center, DQN (Tier B): value-based arm, mirror of P5.
+# Aspect: algorithm family (DQN vs PPO on the SAME 3D task). Pair with V1 in the
+# report. Keeps the default Discrete action space (DQN requires it).
+exp_id: V5_dqn_defendcenter
+task: vizdoom
+algo: dqn
+env_id: VizdoomDefendCenter-v0
+policy: CnnPolicy
+n_envs: 1
+n_stack: 4
+frame_skip: 4
+obs_shape: [84, 84]
+grayscale: true
+seed: 0
+total_timesteps: 2000000
+eval_freq: 100000
+eval_episodes: 20
+checkpoint_freq: 500000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: 1.0e-4
+  buffer_size: 200000
+  learning_starts: 50000
+  batch_size: 32
+  gamma: 0.99
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 1000
+  exploration_fraction: 0.2
+  exploration_initial_eps: 1.0
+  exploration_final_eps: 0.05

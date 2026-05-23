@@ -1,0 +1,31 @@
+# V3 - VizDoom Health Gathering, PPO (Tier B): hardest scenario in the ladder.
+# Aspect: task complexity. Used in the difficulty-scaling thread together with
+# V0 (Basic) and V1 (Defend-Center): final reward vs scenario difficulty.
+# NOTE: confirm env id on first run (VizdoomHealthGathering-v0 expected).
+exp_id: V3_healthgathering
+task: vizdoom
+algo: ppo
+env_id: VizdoomHealthGathering-v0
+policy: CnnPolicy
+n_envs: 8
+n_stack: 4
+frame_skip: 4
+obs_shape: [84, 84]
+grayscale: true
+seed: 0
+total_timesteps: 3000000      # harder exploration -> larger budget
+eval_freq: 150000
+eval_episodes: 20
+checkpoint_freq: 500000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: 2.5e-4
+  n_steps: 128
+  batch_size: 256
+  n_epochs: 4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5

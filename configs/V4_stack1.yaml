@@ -1,0 +1,31 @@
+# V4 - VizDoom Defend-the-Center, PPO, NO frame stacking (Tier B).
+# Aspect: partial observability. A single frame (n_stack = 1) hides motion and
+# direction, which matters more in a 3D first-person view than in 2D Pong.
+# Compare against V1 (n_stack = 4).
+exp_id: V4_stack1
+task: vizdoom
+algo: ppo
+env_id: VizdoomDefendCenter-v0
+policy: CnnPolicy
+n_envs: 8
+n_stack: 1                    # <-- no temporal context (the ablation)
+frame_skip: 4
+obs_shape: [84, 84]
+grayscale: true
+seed: 0
+total_timesteps: 2000000
+eval_freq: 100000
+eval_episodes: 20
+checkpoint_freq: 500000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: 2.5e-4
+  n_steps: 128
+  batch_size: 256
+  n_epochs: 4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5

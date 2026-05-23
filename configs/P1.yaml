@@ -1,0 +1,30 @@
+# P1 - Pong DQN baseline (Tier A).
+# Reference run. Also serves as the reused arm for several ablations:
+#   P2 = "target net ON", P3 = "default epsilon", P4 = "large buffer".
+# Run >=3 seeds for the report:  --seed 0 / 1 / 2
+exp_id: P1
+task: pong
+algo: dqn
+env_id: ALE/Pong-v5
+policy: CnnPolicy
+n_envs: 1
+n_stack: 4
+seed: 0
+total_timesteps: 2000000      # ~1-2 h on an RTX 4090; Pong reaches ~+18-21
+eval_freq: 100000
+eval_episodes: 20
+checkpoint_freq: 500000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: 1.0e-4
+  buffer_size: 200000         # "large" buffer (P4 compares a small one)
+  learning_starts: 100000
+  batch_size: 32
+  gamma: 0.99
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 1000   # lagged target network ON (P2 turns this off)
+  exploration_fraction: 0.1      # default epsilon schedule (P3 varies this)
+  exploration_initial_eps: 1.0
+  exploration_final_eps: 0.01

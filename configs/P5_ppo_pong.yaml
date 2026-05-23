@@ -1,0 +1,28 @@
+# P5 - PPO on Pong (Tier B): policy-based arm of the algorithm-family thread.
+# Aspect: algorithm family (value-based DQN vs policy-based PPO on the SAME task).
+# Pair with P1 in the report. PPO needs many more frames than DQN on Atari, so
+# total_timesteps is large; reduce it if compute/time is short.
+exp_id: P5_ppo_pong
+task: pong
+algo: ppo
+env_id: ALE/Pong-v5
+policy: CnnPolicy
+n_envs: 8                      # SubprocVecEnv parallel rollouts
+n_stack: 4
+seed: 0
+total_timesteps: 10000000     # ~classic PPO-Atari budget; trim if needed
+eval_freq: 250000
+eval_episodes: 20
+checkpoint_freq: 1000000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: 2.5e-4
+  n_steps: 128                # rollout length per env (8 * 128 = 1024 / update)
+  batch_size: 256
+  n_epochs: 4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.1
+  ent_coef: 0.01
+  vf_coef: 0.5

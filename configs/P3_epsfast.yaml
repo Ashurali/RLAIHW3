@@ -1,0 +1,30 @@
+# P3a - DQN with FAST epsilon decay (Tier A).
+# Aspect: exploration vs exploitation. Epsilon reaches its floor very early
+# (exploration_fraction = 0.02), so the agent commits to exploitation quickly.
+# Compare against P1 (0.1, default) and P3_epsslow (0.5, slow).
+exp_id: P3_epsfast
+task: pong
+algo: dqn
+env_id: ALE/Pong-v5
+policy: CnnPolicy
+n_envs: 1
+n_stack: 4
+seed: 0
+total_timesteps: 2000000
+eval_freq: 100000
+eval_episodes: 20
+checkpoint_freq: 500000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: 1.0e-4
+  buffer_size: 200000
+  learning_starts: 100000
+  batch_size: 32
+  gamma: 0.99
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 1000
+  exploration_fraction: 0.02      # <-- fast decay (the ablation)
+  exploration_initial_eps: 1.0
+  exploration_final_eps: 0.01

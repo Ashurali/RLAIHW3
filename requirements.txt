@@ -1,0 +1,22 @@
+# AI HW3 - Reinforcement Learning dependencies.
+#
+# PyTorch with CUDA must match the server's driver. The extra-index-url below
+# pulls CUDA 12.4 wheels; if `pip install -r requirements.txt` resolves a CPU
+# build, install torch first by hand, e.g.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+--extra-index-url https://download.pytorch.org/whl/cu124
+torch>=2.4
+
+# Deep RL stack
+gymnasium[atari]>=1.0
+ale-py>=0.10                 # bundles Atari ROMs (no separate AutoROM step)
+stable-baselines3[extra]>=2.4
+vizdoom>=1.2                 # >=1.2 ships the Gymnasium wrapper used here
+
+# Configs / plotting / GIFs (several also come via sb3[extra]; pinned for clarity)
+pyyaml>=6.0
+imageio>=2.34
+opencv-python>=4.9
+matplotlib>=3.8
+pandas>=2.0
+tensorboard>=2.15
