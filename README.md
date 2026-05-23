@@ -58,18 +58,21 @@ queue list in `deploy/remote_queue.sh` to add Tier B. Fetched `logs/` and full
 `results/` are gitignored.
 
 ## Hardware utilization
-Configs are tuned for the plan's box (**RTX 4090, i7-13700K = 24 threads,
-128 GB RAM**):
+Tuned for the measured server (**RTX 4090 24 GB, i7-13700K = 24 threads,
+125 GB RAM but shared — ~40 GB typically free, Ubuntu 24.04, CUDA-13 driver**):
 - **PPO** (Pong/VizDoom): `n_envs: 16` parallel `SubprocVecEnv` rollouts +
   `batch_size: 512`, to keep the GPU fed while the CPU steps environments.
-- **DQN** (Pong/VizDoom): `buffer_size: 1_000_000` (Nature-DQN size; ~56 GB RAM
-  with frame-stacked uint8 obs) for better sample decorrelation.
+- **DQN** (Pong/VizDoom): `buffer_size: 300_000` (~17 GB RAM with frame-stacked
+  uint8 obs) — sized to fit the *shared* RAM. Raise toward 1,000,000 only if the
+  box is dedicated and RAM is free.
+- **Python:** the venv is built from `python3.12` (not the conda base 3.13) for
+  the widest torch/vizdoom wheel coverage; the CUDA-13 driver runs cu124 wheels.
 - `common/utils.configure_torch_perf()` turns on cuDNN autotuning + TF32 tensor
   cores for the fixed 84×84 CNN inputs.
 
-**If your server differs**, the `setup` step prints `nvidia-smi` / `nproc` / RAM
-at the top of `logs/setup.log` — check it, then scale in the YAML: set `n_envs`
-to your core count and drop `buffer_size` to `200000` if RAM < 64 GB.
+The `setup` step prints `nvidia-smi` / `nproc` / `free` at the top of
+`logs/setup.log`. The box is **shared**, so check free RAM/GPU before launching
+and scale `n_envs` / `buffer_size` down in the YAML if others are running jobs.
 
 ## Manual setup (alternative to the deploy scripts)
 ```bash

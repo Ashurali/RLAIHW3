@@ -18,7 +18,7 @@ param(
 )
 . "$PSScriptRoot\_common.ps1"
 
-$prefix = "cd $RemoteDir && REMOTE_VENV='$RemoteVenv'"
+$prefix = "cd $RemoteDir && REMOTE_VENV='$RemoteVenv' PY_BIN='$RemotePyBin'"
 
 switch ($Action) {
     'setup' {

@@ -24,6 +24,7 @@ $script:SshPort   = if ($cfg['SSH_PORT']) { $cfg['SSH_PORT'] } else { '22' }
 $script:SshKey    = $cfg['SSH_KEY']
 $script:RemoteDir = if ($cfg['REMOTE_DIR']) { $cfg['REMOTE_DIR'] } else { '~/hw3rl' }
 $script:RemoteVenv = if ($cfg['REMOTE_VENV']) { $cfg['REMOTE_VENV'] } else { 'hw3' }
+$script:RemotePyBin = $cfg['REMOTE_PY_BIN']
 $script:Target    = "$SshUser@$SshHost"
 
 if (-not $SshHost -or -not $SshUser) {

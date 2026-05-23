@@ -14,10 +14,21 @@ run_setup() {
   if command -v nvidia-smi >/dev/null 2>&1; then nvidia-smi; else echo "nvidia-smi not found"; fi
   echo "CPUs(threads): $(nproc 2>/dev/null || echo '?')"
   echo "RAM: $(free -h 2>/dev/null | awk '/Mem:/{print $2}' || echo '?')"
-  echo "Python: $(python3 --version 2>&1)"
+  echo "Python(default): $(python3 --version 2>&1)"
+  echo "Available interpreters:"
+  for p in python3.12 python3.11 python3.10; do
+    command -v "$p" >/dev/null 2>&1 && echo "  - $p = $($p --version 2>&1)"
+  done
 
-  echo "=== creating venv: $VENV ==="
-  python3 -m venv "$VENV"
+  # Prefer 3.12/3.11 over the conda base (3.13): broadest torch/vizdoom wheel
+  # coverage. Override with REMOTE_PY_BIN in deploy/server.env if needed.
+  if [ -z "${PY_BIN:-}" ]; then
+    for p in python3.12 python3.11 python3.10 python3; do
+      if command -v "$p" >/dev/null 2>&1; then PY_BIN="$p"; break; fi
+    done
+  fi
+  echo "=== creating venv: $VENV  (interpreter: $PY_BIN = $($PY_BIN --version 2>&1)) ==="
+  "$PY_BIN" -m venv "$VENV" || { echo "venv failed -- you may need: sudo apt install ${PY_BIN}-venv" >&2; exit 1; }
   source "$VENV/bin/activate"
   python -m pip install --upgrade pip wheel
 
