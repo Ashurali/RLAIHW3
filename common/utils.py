@@ -37,6 +37,25 @@ def set_global_seeds(seed: int) -> None:
         pass
 
 
+def configure_torch_perf() -> None:
+    """Enable throughput-oriented GPU settings (safe on any CUDA GPU).
+
+    cuDNN autotuning picks the fastest conv algorithms for our fixed 84x84
+    inputs; TF32 matmuls use the Ampere/Ada tensor cores. Both trade a little
+    numerical determinism for speed, which is fine for RL throughput.
+    """
+    try:
+        import torch
+
+        torch.backends.cudnn.benchmark = True
+        if torch.cuda.is_available():
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            torch.set_float32_matmul_precision("high")
+    except ImportError:
+        pass
+
+
 def get_run_dir(exp_id: str, seed: int, create: bool = True) -> Path:
     """Return ``results/<exp_id>_s<seed>/``; create it unless told otherwise."""
     run_dir = RESULTS_DIR / f"{exp_id}_s{seed}"

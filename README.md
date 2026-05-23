@@ -26,15 +26,63 @@ EXPERIMENTS.md  RESULTS.md  REFERENCES.md   report journal / tables / refs
 smoke_test.py   env sanity check — run FIRST on the server
 ```
 
-## Setup (on the GPU server)
+## Remote workflow (no git on the server — scp/ssh only)
+The `deploy/` folder drives everything over SSH. Training runs **detached**
+(`nohup`) on the server, so you can close the SSH session / shut the laptop and
+it keeps going; progress is written to `logs/` and tracked with `tail`.
+
+**One-time:** copy `deploy/server.env.example` to `deploy/server.env` and fill in
+your host / user / port / remote path (`server.env` is gitignored).
+
+```powershell
+# 1) push code to the server (scp; excludes results/venv/git, fixes LF)
+pwsh deploy/upload.ps1
+# 2) create venv + install deps + verify CUDA (detached; wait for SETUP_DONE)
+pwsh deploy/remote.ps1 -Action setup
+pwsh deploy/remote.ps1 -Action tail -Log setup
+# 3) sanity-check the envs on the GPU box
+pwsh deploy/remote.ps1 -Action smoke
+# 4) launch training in the background
+pwsh deploy/remote.ps1 -Action train -Config P1 -Seed 0     # one run
+pwsh deploy/remote.ps1 -Action queue                        # whole Tier-A queue
+# 5) watch / manage (laptop can disconnect at any time)
+pwsh deploy/remote.ps1 -Action status
+pwsh deploy/remote.ps1 -Action tail -Log P1_s0
+pwsh deploy/remote.ps1 -Action stop -Log P1_s0
+# 6) pull results back to the laptop
+pwsh deploy/fetch.ps1 -Lite    # metrics/curve/eval/config/gif + logs (small)
+pwsh deploy/fetch.ps1          # full (includes model .zip)
+```
+Needs the Windows OpenSSH client + `tar` (both ship with Windows 11). Edit the
+queue list in `deploy/remote_queue.sh` to add Tier B. Fetched `logs/` and full
+`results/` are gitignored.
+
+## Hardware utilization
+Configs are tuned for the plan's box (**RTX 4090, i7-13700K = 24 threads,
+128 GB RAM**):
+- **PPO** (Pong/VizDoom): `n_envs: 16` parallel `SubprocVecEnv` rollouts +
+  `batch_size: 512`, to keep the GPU fed while the CPU steps environments.
+- **DQN** (Pong/VizDoom): `buffer_size: 1_000_000` (Nature-DQN size; ~56 GB RAM
+  with frame-stacked uint8 obs) for better sample decorrelation.
+- `common/utils.configure_torch_perf()` turns on cuDNN autotuning + TF32 tensor
+  cores for the fixed 84×84 CNN inputs.
+
+**If your server differs**, the `setup` step prints `nvidia-smi` / `nproc` / RAM
+at the top of `logs/setup.log` — check it, then scale in the YAML: set `n_envs`
+to your core count and drop `buffer_size` to `200000` if RAM < 64 GB.
+
+## Manual setup (alternative to the deploy scripts)
 ```bash
 python -m venv hw3
 source hw3/bin/activate          # Windows: hw3\Scripts\activate
 pip install -r requirements.txt
+# verify the GPU is visible before training:
+python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
-`requirements.txt` pulls CUDA 12.4 PyTorch wheels via `--extra-index-url`. If pip
-resolves a CPU build, install torch first:
-`pip install torch --index-url https://download.pytorch.org/whl/cu124`.
+`requirements.txt` pulls CUDA 12.4 PyTorch wheels via `--extra-index-url`. Match
+the CUDA build to the server driver: run `nvidia-smi` (top-right shows the max
+CUDA version) and if it's older than 12.4, install the matching wheels instead,
+e.g. `pip install torch --index-url https://download.pytorch.org/whl/cu121`.
 Atari ROMs ship with `ale-py` (no AutoROM step). VizDoom needs its system build
 deps on Linux (e.g. `sudo apt install build-essential libsdl2-dev` if a wheel
 isn't available for your platform).

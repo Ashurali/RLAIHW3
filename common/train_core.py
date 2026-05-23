@@ -10,7 +10,12 @@ from common.callbacks import make_callbacks
 from common.envs import build_env_fn
 from common.eval_utils import evaluate_and_record
 from common.plotting import plot_curve
-from common.utils import get_run_dir, save_config_copy, set_global_seeds
+from common.utils import (
+    configure_torch_perf,
+    get_run_dir,
+    save_config_copy,
+    set_global_seeds,
+)
 
 
 def run_training(cfg, model_cls):
@@ -22,6 +27,7 @@ def run_training(cfg, model_cls):
     """
     seed = int(cfg.get("seed", 0))
     set_global_seeds(seed)
+    configure_torch_perf()
 
     run_dir = get_run_dir(cfg["exp_id"], seed)
     save_config_copy(cfg, run_dir)

@@ -28,6 +28,12 @@ events.out.tfevents.*
 !results/**/config.yaml
 !results/**/gameplay.gif
 
+# Deploy / SSH workflow
+deploy/server.env          # connection details — never commit
+logs/                      # training logs fetched back from the server
+*.tgz                      # upload/fetch tarballs
+*.pid
+
 # OS / editor
 .DS_Store
 Thumbs.db

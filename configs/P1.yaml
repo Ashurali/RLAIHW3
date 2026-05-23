@@ -18,7 +18,9 @@ device: cuda
 record_gif: true
 algo_kwargs:
   learning_rate: 1.0e-4
-  buffer_size: 200000         # "large" buffer (P4 compares a small one)
+  buffer_size: 1000000        # "large" buffer = Nature-DQN size; ~56GB RAM with
+                              # frame-stacked uint8 obs. Drop to 200000 if the
+                              # server has <64GB. P4 compares a small buffer.
   learning_starts: 100000
   batch_size: 32
   gamma: 0.99

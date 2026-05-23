@@ -1,0 +1,9 @@
+# Keep shell scripts LF so they run on the Linux server (CRLF breaks the
+# shebang and `$'\r'` errors). Other source stays LF for cross-platform sanity.
+*.sh   text eol=lf
+*.py   text eol=lf
+*.yaml text eol=lf
+*.yml  text eol=lf
+
+# PowerShell scripts run on Windows; CRLF is fine.
+*.ps1  text eol=crlf
