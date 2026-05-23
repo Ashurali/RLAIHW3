@@ -29,9 +29,13 @@ events.out.tfevents.*
 !results/**/gameplay.gif
 
 # Deploy / SSH workflow
-deploy/server.env          # connection details — never commit
-logs/                      # training logs fetched back from the server
-*.tgz                      # upload/fetch tarballs
+# (gitignore has no inline comments — keep patterns on their own lines)
+# connection details — never commit
+deploy/server.env
+# training logs fetched back from the server
+logs/
+# upload / fetch tarballs
+*.tgz
 *.pid
 
 # OS / editor
