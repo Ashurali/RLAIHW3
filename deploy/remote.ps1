@@ -26,7 +26,7 @@ switch ($Action) {
     }
     'smoke' {
         # Foreground: short, and you want to see the output directly.
-        Invoke-Remote "cd $RemoteDir && source $RemoteVenv/bin/activate && python smoke_test.py"
+        Invoke-Remote "$prefix && source deploy/_activate.sh && activate_env && python smoke_test.py"
     }
     'train' {
         if (-not $Config) { throw "-Config is required (e.g. -Config P1)" }

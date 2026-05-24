@@ -64,7 +64,7 @@ This is coursework; it must reflect **Michael's** decisions and analysis. Claude
 
 ## 4. Environment setup
 ```bash
-python -m venv hw3 && source hw3/bin/activate          # Windows: hw3\Scripts\activate
+python -m venv hw3 && conda activate hw3         # Windows: hw3\Scripts\activate
 pip install torch --index-url https://download.pytorch.org/whl/cu124
 pip install gymnasium "gymnasium[atari]"
 pip install stable-baselines3[extra]

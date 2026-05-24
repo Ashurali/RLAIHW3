@@ -76,8 +76,8 @@ and scale `n_envs` / `buffer_size` down in the YAML if others are running jobs.
 
 ## Manual setup (alternative to the deploy scripts)
 ```bash
-python -m venv hw3
-source hw3/bin/activate          # Windows: hw3\Scripts\activate
+# python -m venv hw3
+conda activate hw3        # Windows: hw3\Scripts\activate
 pip install -r requirements.txt
 # verify the GPU is visible before training:
 python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"

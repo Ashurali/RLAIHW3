@@ -5,7 +5,7 @@
 exp_id: V3_healthgathering
 task: vizdoom
 algo: ppo
-env_id: VizdoomHealthGathering-v0
+env_id: VizdoomHealthGathering-v1
 policy: CnnPolicy
 n_envs: 16
 n_stack: 4

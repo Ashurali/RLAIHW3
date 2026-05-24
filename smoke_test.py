@@ -52,7 +52,7 @@ def check_vizdoom():
     from common.envs import make_vizdoom_vec
 
     # Use the Basic scenario for the smoke test (loads fastest).
-    env_id = "VizdoomBasic-v0"
+    env_id = "VizdoomBasic-v1"
     print(f"[vizdoom] building {env_id} ... (edit env_id if the suffix differs)")
     venv = make_vizdoom_vec(env_id, n_envs=1, seed=0, n_stack=4)
     step_vec(venv, label="vizdoom")

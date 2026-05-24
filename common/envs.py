@@ -14,6 +14,10 @@ from stable_baselines3.common.vec_env import (
     VecFrameStack,
 )
 
+import gymnasium as gym
+import ale_py
+gym.register_envs(ale_py)
+
 from common.vizdoom_wrappers import VizDoomScreenWrapper
 
 

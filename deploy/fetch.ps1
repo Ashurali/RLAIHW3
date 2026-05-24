@@ -16,9 +16,11 @@ if ($Lite) {
 
     Push-Location $root
     try {
-        tar -xzf $localTar
+        # Use the relative name: bsdtar can fail to open an absolute path that
+        # contains spaces / non-ASCII (this repo's path has both).
+        tar -xzf 'results_lite.tgz'
         if ($LASTEXITCODE -ne 0) { throw "local extract failed" }
-        Remove-Item $localTar -Force
+        Remove-Item 'results_lite.tgz' -Force
     }
     finally { Pop-Location }
     Write-Host "Done -> results/ and logs/ updated (lite)."

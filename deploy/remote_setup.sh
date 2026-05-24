@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # One-time server setup, DETACHED (survives SSH logout). Probes the hardware,
-# creates the venv, installs requirements, and verifies CUDA.
+# creates the conda env, installs requirements, and verifies CUDA.
 #
 # Usage (via deploy/remote.ps1 -Action setup, or directly on the server):
 #   REMOTE_VENV=hw3 bash deploy/remote_setup.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."                      # repo root on the server
 VENV="${REMOTE_VENV:-hw3}"
+ENV_KIND="${ENV_KIND:-conda}"
+export REMOTE_VENV ENV_KIND PY_VERSION PY_BIN REMOTE_CONDA_BASE
 mkdir -p logs
 
 run_setup() {
@@ -20,16 +22,11 @@ run_setup() {
     command -v "$p" >/dev/null 2>&1 && echo "  - $p = $($p --version 2>&1)"
   done
 
-  # Prefer 3.12/3.11 over the conda base (3.13): broadest torch/vizdoom wheel
-  # coverage. Override with REMOTE_PY_BIN in deploy/server.env if needed.
-  if [ -z "${PY_BIN:-}" ]; then
-    for p in python3.12 python3.11 python3.10 python3; do
-      if command -v "$p" >/dev/null 2>&1; then PY_BIN="$p"; break; fi
-    done
-  fi
-  echo "=== creating venv: $VENV  (interpreter: $PY_BIN = $($PY_BIN --version 2>&1)) ==="
-  "$PY_BIN" -m venv "$VENV" || { echo "venv failed -- you may need: sudo apt install ${PY_BIN}-venv" >&2; exit 1; }
-  source "$VENV/bin/activate"
+  # Create the env via deploy/_activate.sh (conda or venv per ENV_KIND). conda
+  # needs no sudo / system packages, which is why it's the default on the lab box.
+  echo "=== creating environment ($ENV_KIND -> $VENV) ==="
+  source deploy/_activate.sh
+  set +u; create_env; set -u
   python -m pip install --upgrade pip wheel
 
   echo "=== installing requirements (CUDA torch via extra-index-url) ==="

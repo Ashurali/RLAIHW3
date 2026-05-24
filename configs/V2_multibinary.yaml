@@ -7,7 +7,7 @@
 exp_id: V2_multibinary
 task: vizdoom
 algo: ppo
-env_id: VizdoomDefendCenter-v0
+env_id: VizdoomDefendCenter-v1
 policy: CnnPolicy
 n_envs: 16
 n_stack: 4

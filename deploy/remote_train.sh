@@ -28,7 +28,7 @@ pidf="logs/${name}_s${SEED}.pid"
 
 # nohup + redirect + </dev/null detaches the job so it keeps running after the
 # SSH session closes. -u keeps Python output unbuffered for live tailing.
-nohup bash -c "source '$VENV/bin/activate' && exec python -u '$script' --config '$CONFIG' --seed '$SEED'" \
+nohup bash -c "source deploy/_activate.sh && activate_env && exec python -u '$script' --config '$CONFIG' --seed '$SEED'" \
   > "$log" 2>&1 < /dev/null &
 echo $! > "$pidf"
 

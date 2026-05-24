@@ -8,7 +8,7 @@ Tier A guarantees a complete report; Tier B is full scope, queued after A.
 
 | ID | Tier | Date | Task / Env | Algo | Key hyperparams | Seeds | Result (mean ± std) | 🧑 Takeaway (the "message") |
 |---|---|---|---|---|---|---|---|---|
-| P1 | A | | Pong `ALE/Pong-v5` | DQN | baseline; buffer 500k; tgt 1000; eps_frac 0.1; 2M steps | 0,1,2 | _TBD_ | _TBD_ |
+| P1 | A | | Pong `ALE/Pong-v5` | DQN | baseline; buffer 500k; tgt 1000; eps_frac 0.1; 7M steps (was 2M, undertrained) | 0,1,2 | _TBD_ | _TBD_ |
 | P2_targetoff | A | | Pong | DQN | target_update_interval=1 (no lag) | 0,1,2 | _TBD_ | _TBD_ |
 | P3_epsfast | A | | Pong | DQN | exploration_fraction=0.02 | 0,1,2 | _TBD_ | _TBD_ |
 | P3_epsslow | A | | Pong | DQN | exploration_fraction=0.5 | 0,1,2 | _TBD_ | _TBD_ |

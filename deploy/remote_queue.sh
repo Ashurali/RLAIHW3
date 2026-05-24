@@ -14,19 +14,21 @@ mkdir -p logs
 # Each entry is "<config_basename> <seed>". Tier A x3 seeds shown by default;
 # uncomment Tier B lines to queue the full scope.
 LIST=(
-  "P1 0" "P1 1" "P1 2"
+  # Round 2: V0 (entropy fix) + P1-P3 reruns at 7M + Tier B.
+  # V1/V2 already succeeded at 2M and are NOT re-run.
+  # Order: quick checks first, then cheap PPO Tier-B, then the long 7M DQN grind,
+  # so the fast/insurance results are banked early on the shared GPU.
+  "V0_basic 0" "V0_basic 1" "V0_basic 2"
+  "P1 0"
+  "P5_ppo_pong 0" "P5_ppo_pong 1" "P5_ppo_pong 2"
+  "V3_healthgathering 0" "V3_healthgathering 1" "V3_healthgathering 2"
+  "V4_stack1 0" "V4_stack1 1" "V4_stack1 2"
+  "P1 1" "P1 2"
   "P2_targetoff 0" "P2_targetoff 1" "P2_targetoff 2"
   "P3_epsfast 0" "P3_epsfast 1" "P3_epsfast 2"
   "P3_epsslow 0" "P3_epsslow 1" "P3_epsslow 2"
-  "V0_basic 0" "V0_basic 1" "V0_basic 2"
-  "V1_defendcenter 0" "V1_defendcenter 1" "V1_defendcenter 2"
-  "V2_multibinary 0" "V2_multibinary 1" "V2_multibinary 2"
-  # --- Tier B (uncomment to include) ---
-  # "P4_buffersmall 0" "P4_buffersmall 1" "P4_buffersmall 2"
-  # "P5_ppo_pong 0" "P5_ppo_pong 1" "P5_ppo_pong 2"
-  # "V3_healthgathering 0" "V3_healthgathering 1" "V3_healthgathering 2"
-  # "V4_stack1 0" "V4_stack1 1" "V4_stack1 2"
-  # "V5_dqn_defendcenter 0" "V5_dqn_defendcenter 1" "V5_dqn_defendcenter 2"
+  "P4_buffersmall 0" "P4_buffersmall 1" "P4_buffersmall 2"
+  "V5_dqn_defendcenter 0" "V5_dqn_defendcenter 1" "V5_dqn_defendcenter 2"
 )
 # ---------------------------------------------------------------------------
 
@@ -44,7 +46,8 @@ map_script() {
 }
 
 run_queue() {
-  source "$VENV/bin/activate"
+  source deploy/_activate.sh
+  activate_env
   local n=${#LIST[@]} i=0
   for entry in "${LIST[@]}"; do
     i=$((i + 1))
