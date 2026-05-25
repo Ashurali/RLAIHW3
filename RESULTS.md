@@ -42,10 +42,11 @@ Figure: `report_assets/T4_actionspace.png` (V1 Discrete vs V2 MultiDiscrete).
 
 ## T5 — Task complexity (difficulty ladder)
 Figure: `report_assets/T5_difficulty.png` (final reward vs scenario difficulty).
+Basic (V0) dropped — vanilla PPO was unstable on its reward scale (−186 ± 195,
+no convergence); the 3D pipeline is validated by V1/V2 instead.
 
 | Scenario | Config | Final reward | 🧑 Takeaway |
 |---|---|---|---|
-| Basic | V0 | _TBD_ | _TBD_ |
 | Defend-Center | V1 | _TBD_ | _TBD_ |
 | Health Gathering | V3 | _TBD_ | _TBD_ |
 
