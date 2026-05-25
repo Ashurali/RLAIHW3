@@ -10,7 +10,8 @@ policy: CnnPolicy
 n_envs: 16                     # SubprocVecEnv parallel rollouts (~16 CPU threads)
 n_stack: 4
 seed: 0
-total_timesteps: 10000000     # ~classic PPO-Atari budget; trim if needed
+total_timesteps: 7000000      # equalized with P1 (DQN) for a fair T1 comparison
+                              # (same env-step budget; Pong converges < 7M for PPO)
 eval_freq: 250000
 eval_episodes: 20
 checkpoint_freq: 1000000
