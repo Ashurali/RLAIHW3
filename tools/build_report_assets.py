@@ -119,8 +119,12 @@ def build_T2():
         ["Baseline (P1)", "Target net OFF (P2)", "ε fast decay (P3a)",
          "ε slow decay (P3b)", "Small buffer (P4)"],
         ax,
-        "T2 — DQN components on Pong",
+        "T2 — DQN components on Pong (2 M ablation budget)",
     )
+    # Clip to the 2 M ablation budget. P1 was additionally extended to 7 M for
+    # T1, and one P2 seed completed 7 M, but T2 is anchored at 2 M for a clean
+    # 3-seed comparison across all ablations.
+    ax.set_xlim(0, 2.05e6)
     fig.tight_layout()
     out = ASSETS / "T2_dqn_components.png"
     fig.savefig(out, dpi=150)

@@ -23,10 +23,13 @@ frame-stack image pipelines, and ≥ 3 seeds per curve, five threads are tested:
 (T3) frame stacking on the 3D task; (T4) Discrete vs MultiDiscrete action
 spaces; (T5) task complexity across two VizDoom scenarios. The clearest
 findings are (i) **DQN is markedly more sample-efficient than PPO on Pong at
-equal data** thanks to off-policy replay, (ii) **the lagged target network is
-the single most important DQN stability component**, and (iii) **frame
-stacking is essential in the 3D first-person setting**, where motion cues
-cannot be inferred from a single frame.
+equal data** (+4.77 vs −6.58 at 7 M steps) thanks to off-policy replay,
+(ii) **the lagged target network is the single most important DQN stability
+component** (≈ 9.5-point gap at the 2 M ablation budget), and (iii) **frame
+stacking is task-dependent — counter-productive on VizDoom
+Defend-the-Center** (stack 1 beats stack 4 by 2.4 points) even though it is
+essential in Pong, because the 3D scenario's optimal play is dominated by
+spatial information already present in a single frame.
 
 \newpage
 
@@ -250,36 +253,45 @@ most for performance and stability on Pong?
 
 ![DQN components: P1 baseline, P2 target-net OFF, P3 ε-fast / ε-slow, P4 small buffer (where available).](../report_assets/T2_dqn_components.png){ width=80% }
 
+**T2 is reported at the 2 M-step ablation budget.** All four variants below
+were trained for 2 M steps in the original round-1 pass; the round-2 attempt
+to re-train them at 7 M was pre-empted by shared-GPU contention before
+finishing (only P2_targetoff seed 1 completed at +5.6, leaving the other
+seeds with their 2 M evaluations — see §4 limitations). For a clean 3-seed
+comparison we therefore use the 2 M data. The P1 baseline was additionally
+extended to 7 M (+4.77, see T1) for the algorithm-family comparison.
+
 | Variant | Config | Seeds | Mean ± SD (eval) | Budget | Δ vs baseline |
 |---|---|---|---|---|---|
-| **Baseline** | P1 | 3 | **+4.77 ± 6.32** | 7 M | — |
-| Target net OFF | P2_targetoff | 3 | −6.92 ± 9.04 | 7 M | **−11.69** |
-| ε fast (frac = 0.02) | P3_epsfast | 3 | −7.73 ± 3.17 | 2 M | see prose |
-| ε slow (frac = 0.5) | P3_epsslow | 3 | −7.90 ± 4.78 | 2 M | see prose |
+| **Baseline** | P1 | 3 | **−4.17 ± 2.32** | 2 M | — |
+| Target net OFF | P2_targetoff | 3 | **−13.68 ± 1.95** | 2 M | **−9.51** |
+| ε fast (frac = 0.02) | P3_epsfast | 3 | −7.73 ± 3.17 | 2 M | −3.56 |
+| ε slow (frac = 0.5) | P3_epsslow | 3 | −7.90 ± 4.78 | 2 M | −3.73 |
 | Small buffer (20 k) | P4_buffersmall | — | — | — | *not run* |
 
 The lagged target network has by far the largest effect: removing it (setting
 `target_update_interval = 1` so the bootstrap target updates every gradient
-step) drops mean reward from **+4.77 to −6.92** — an **11.7-point gap** at
-the same 7 M-step budget. The standard deviation also balloons from 6.3 to
-9.0, reflecting the "moving-target" instability the target network is
-designed to suppress: one P2 seed finished at +5.6, while the other two
-collapsed to −10.95 and −15.4.
+step) drops mean reward from **−4.17 to −13.68** — a **9.5-point gap**. The
+effect is robust across seeds — the cross-seed standard deviation is in fact
+slightly *smaller* without the target net (1.95 vs 2.32), so the gap is a
+consistent shift in performance, not a single bad seed pulling the mean
+down. (One 7 M-extended P2 seed reached +5.6, but with only one completed
+seed at that budget we cannot make a 7 M-vs-7 M claim.)
 
-The ε-greedy schedule has a smaller, roughly symmetric effect. P3 was not
-re-run at 7 M because of shared-GPU contention (see §4 limitations); the
-numbers above are at 2 M. Both a fast decay (`exploration_fraction = 0.02`,
-ε at floor by 40 k steps) and a slow decay (`exploration_fraction = 0.5`,
-floor reached only at 1 M steps) reach **−7.73** and **−7.90** respectively,
-against the round-1 default-schedule baseline of ≈ −4 at the same 2 M. Too
-much *or* too little exploration hurts by a comparable amount, so the default
-`exploration_fraction = 0.1` is near the sweet spot. P4 (small replay buffer)
-was deferred for time and is omitted.
+The ε-greedy schedule has a smaller, roughly symmetric effect. Both a fast
+decay (`exploration_fraction = 0.02`, ε at floor by 40 k steps) and a slow
+decay (`exploration_fraction = 0.5`, floor reached only at 1 M steps) reach
+**−7.73** and **−7.90** respectively, each costing ≈ 3.6 points relative
+to the default `exploration_fraction = 0.1`. Too much *or* too little
+exploration hurts by a comparable amount, so the default is near the sweet
+spot. P4 (small replay buffer) was deferred for time and is omitted.
 
-> **🧑 Takeaway.** The lagged target network is by far the most important DQN
-> stabilisation component on Pong (an 11.7-point mean drop and substantially
-> worse variance without it); the ε-greedy schedule matters less, with both
-> faster and slower decays performing similarly worse than the default.
+> **🧑 Takeaway.** The lagged target network is by far the most important
+> DQN stabilisation component on Pong — removing it costs ~9.5 points at
+> the 2 M ablation budget and the effect is consistent across all three
+> seeds (the variance does not increase). The ε-greedy schedule matters
+> less (~3.6 points), with both faster and slower decays performing
+> similarly worse than the default.
 
 ## 3.3 T3 — Partial observability: frame stacking on VizDoom Defend-Center
 
@@ -417,13 +429,18 @@ real-world RL), DQN-style off-policy learning starts ahead.
 
 **Target networks are not optional for DQN.** Removing the lagged target
 network was the single most damaging change in any DQN experiment: P1
-baseline +4.77 vs P2-target-off −6.92, with cross-seed variance also rising
-from 6.3 to 9.0 (T2). The "bootstrap-into-a-moving-target" failure mode
-predicted by the theory shows up clearly in practice — one seed finished at
-+5.6 while the other two collapsed below −10. The ε-greedy
+baseline **−4.17** vs P2-target-off **−13.68** at the 2 M ablation budget
+(T2). The gap of ~9.5 points is a consistent shift across all three seeds —
+the cross-seed standard deviation is actually slightly *tighter* for the
+target-off variant (1.95 vs 2.32), so the effect is not an instability
+artefact but a uniform regression. (Of the planned 7 M-budget re-runs of
+this ablation only one P2 seed completed, at +5.6; with n = 1 we cannot
+make a robust 7 M-vs-7 M claim, so the comparison is anchored at 2 M.) The
+ε-greedy
 schedule's effect, by contrast, is small and roughly symmetric: both faster
-and slower decays hurt by comparable amounts, suggesting the default
-`exploration_fraction = 0.1` sits in a fairly flat minimum.
+and slower decays hurt by ≈ 3.6 points relative to the default
+`exploration_fraction = 0.1`, suggesting the default sits in a fairly flat
+minimum.
 
 **Observation representation is task-dependent, not universal.** The most
 striking single result is T3: frame stacking, which is essential in Pong,
@@ -452,12 +469,17 @@ per task.
 
 ## 4.1 Limitations
 
-Three honest caveats. **First**, the P3 ε-decay ablations were evaluated at
-2 M steps while the P1 baseline ran 7 M, because shared-GPU contention slowed
-wall-clock substantially below the original projection (≈ 9 h / run instead
-of ≈ 3.8 h / run for 7 M DQN) and the deadline forced the truncation. The
-direction of the ε effect is the same at both budgets, but the magnitudes
-are not strictly comparable across T2 rows. **Second**, the Tier-B
+Three honest caveats. **First**, the planned round-2 re-training of all
+DQN ablations at 7 M was pre-empted by shared-GPU contention (≈ 9 h/run
+instead of the projected ≈ 3.8 h, plus one seed killed mid-training). Only
+P1 ran 3-seeds × 7 M cleanly. P2_targetoff completed 1 of 3 seeds at 7 M
+(seed 1 at +5.6); seeds 0 and 2 retain their 2 M round-1 evaluations on
+disk, so the on-disk aggregate (−6.92) mixes budgets and is not a clean
+7 M comparison. T2 is therefore reported at the **2 M ablation budget**
+where all three seeds of every variant are comparable (P1, P2, P3 all
+ran 3 × 2 M in round-1). P1 was additionally extended to 7 M (+4.77) for
+the T1 algorithm-family comparison, which is a clean 7 M-vs-7 M result
+(P5 PPO also ran 3 × 7 M). **Second**, the Tier-B
 experiments P4 (small replay buffer) and V5 (DQN on Defend-the-Center) were
 not completed; the cross-task DQN-vs-PPO comparison on the 3D side of T1 is
 therefore absent — only the Pong half is reported. **Third**, Pong DQN
