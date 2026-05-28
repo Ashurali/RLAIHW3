@@ -22,6 +22,37 @@ def load_config(path) -> dict:
     return cfg
 
 
+def _linear_schedule(initial_value: float):
+    """SB3 schedule: linear from ``initial_value`` (progress=1) down to 0.
+
+    SB3 invokes the callable with ``progress_remaining`` going 1.0 -> 0.0 over
+    training. This is the standard schedule used by the SB3-zoo / Schulman
+    PPO-Atari recipe: linear LR-decay and clip-range-decay both critical for
+    Pong convergence.
+    """
+    def schedule(progress_remaining: float) -> float:
+        return float(progress_remaining) * float(initial_value)
+    schedule.__name__ = f"lin_{initial_value:g}"
+    return schedule
+
+
+def resolve_schedules(kwargs: dict) -> dict:
+    """Convert ``lin_<float>`` strings in algo_kwargs into SB3 schedule callables.
+
+    Lets configs say ``learning_rate: lin_2.5e-4`` and have SB3 receive a
+    proper linear-decay callable. Returns a NEW dict (does not mutate input).
+    """
+    out = dict(kwargs)
+    for k, v in list(out.items()):
+        if isinstance(v, str) and v.startswith("lin_"):
+            try:
+                init = float(v[len("lin_"):])
+            except ValueError:
+                continue
+            out[k] = _linear_schedule(init)
+    return out
+
+
 def set_global_seeds(seed: int) -> None:
     """Seed Python, NumPy and (when present) PyTorch for reproducibility."""
     random.seed(seed)

@@ -1,24 +1,21 @@
 #!/usr/bin/env bash
-# Run a LIST of experiments SEQUENTIALLY, detached (survives SSH logout).
-# One GPU -> run jobs back-to-back rather than thrashing in parallel.
-# Master log: logs/queue_<timestamp>.log ; per-run: logs/<exp>_s<seed>.log
+# Round 3 catch-up queue: runs AFTER V5 finishes.
+#   - P4_buffersmall × 3 seeds at 2M (T2 small-buffer gap)
+#   - P5b_ppo_zoo × 3 seeds at 7M (T1 PPO literature-recipe sanity check)
 #
-# Usage (via deploy/remote.ps1 -Action queue, or directly):
-#   REMOTE_VENV=hw3 bash deploy/remote_queue.sh
+# Same nohup / detached pattern as remote_queue.sh. Launched by the V5 watcher
+# when the round-2 queue master exits.
 set -euo pipefail
 cd "$(dirname "$0")/.."                      # repo root on the server
 VENV="${REMOTE_VENV:-hw3}"
 mkdir -p logs
 
-# --- EDIT THIS QUEUE -------------------------------------------------------
-# Each entry is "<config_basename> <seed>". Tier A x3 seeds shown by default;
-# uncomment Tier B lines to queue the full scope.
 LIST=(
-  # Round 3: catch-up run on 2026-05-29 to fill the T1b gap.
-  # ONLY V5 (DQN on Defend-Center), 3 seeds, 2M steps. Everything else is done.
-  "V5_dqn_defendcenter 0" "V5_dqn_defendcenter 1" "V5_dqn_defendcenter 2"
+  # Cheap small-buffer ablation first (2M, single-env DQN, ~30-60min/seed).
+  "P4_buffersmall 0" "P4_buffersmall 1" "P4_buffersmall 2"
+  # Literature-recipe PPO last (7M, 16 envs, ~2h/seed at idle GPU).
+  "P5b_ppo_zoo 0" "P5b_ppo_zoo 1" "P5b_ppo_zoo 2"
 )
-# ---------------------------------------------------------------------------
 
 map_script() {
   local cfg="$1" task algo
@@ -55,13 +52,12 @@ run_queue() {
   echo "QUEUE_DONE"
 }
 
-# Re-exec a detached worker so the whole queue survives SSH logout.
 if [ "${1:-}" = "--worker" ]; then run_queue; exit 0; fi
 
 ts="$(date +%Y%m%d_%H%M%S)"
-qlog="logs/queue_${ts}.log"
+qlog="logs/queue_round3_${ts}.log"
 nohup bash "$0" --worker > "$qlog" 2>&1 < /dev/null &
-echo $! > logs/queue.pid
-echo "STARTED queue (${#LIST[@]} runs)  pid=$(cat logs/queue.pid)"
+echo $! > logs/queue_round3.pid
+echo "STARTED round3 queue (${#LIST[@]} runs)  pid=$(cat logs/queue_round3.pid)"
 echo "  master log: $qlog    (track:  tail -f $qlog)"
 echo "  per-run logs: logs/<exp>_s<seed>.log"

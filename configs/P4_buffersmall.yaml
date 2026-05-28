@@ -10,7 +10,7 @@ policy: CnnPolicy
 n_envs: 1
 n_stack: 4
 seed: 0
-total_timesteps: 7000000      # match P1 (fair small-vs-large buffer comparison)
+total_timesteps: 2000000      # T2 ablation budget; compare vs P1's 2M snapshot from metrics.csv
 eval_freq: 100000
 eval_episodes: 20
 checkpoint_freq: 500000

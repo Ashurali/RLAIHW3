@@ -1,0 +1,37 @@
+# P5b - PPO on Pong with the SB3-zoo / Schulman-2017 Atari recipe.
+# Sanity check for T1: our original P5 used constant LR / clip_range and lost
+# (-6.58 at 7M, far below literature). Literature PPO on Pong reaches +18-21
+# at ~7-10M with LINEAR decay on both learning_rate and clip_range. This run
+# applies the literature recipe to isolate whether T1's "DQN beats PPO" surface
+# result was a hyperparameter artifact.
+#
+# Differences vs P5 (the originally-published numbers):
+#   learning_rate:  2.5e-4  ->  lin_2.5e-4   (linear decay to 0)
+#   clip_range:     0.1     ->  lin_0.1      (linear decay to 0)
+#   batch_size:     512     ->  256          (zoo default; smaller minibatches)
+# Everything else (n_envs, n_steps, n_epochs, gamma, ent_coef, vf_coef) matches
+# P5 so the only thing being isolated is the LR / clip / batch-size recipe.
+exp_id: P5b_ppo_zoo
+task: pong
+algo: ppo
+env_id: ALE/Pong-v5
+policy: CnnPolicy
+n_envs: 16
+n_stack: 4
+seed: 0
+total_timesteps: 7000000      # same budget as P5 (fair T1-side comparison)
+eval_freq: 250000
+eval_episodes: 20
+checkpoint_freq: 1000000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: lin_2.5e-4   # SB3 linear schedule: 2.5e-4 -> 0
+  n_steps: 128
+  batch_size: 256             # zoo default
+  n_epochs: 4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: lin_0.1         # SB3 linear schedule: 0.1 -> 0
+  ent_coef: 0.01
+  vf_coef: 0.5

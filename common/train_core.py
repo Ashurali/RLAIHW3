@@ -13,6 +13,7 @@ from common.plotting import plot_curve
 from common.utils import (
     configure_torch_perf,
     get_run_dir,
+    resolve_schedules,
     save_config_copy,
     set_global_seeds,
 )
@@ -37,6 +38,10 @@ def run_training(cfg, model_cls):
     train_env = env_fn(seed=seed, n_envs=n_envs, eval_mode=False)
     eval_env = env_fn(seed=seed + 1000, n_envs=1, eval_mode=True)
 
+    # Translate `lin_<float>` strings (e.g. `learning_rate: lin_2.5e-4`) into
+    # SB3 linear-decay callables. Required for the literature-recipe PPO config.
+    algo_kwargs = resolve_schedules(cfg.get("algo_kwargs", {}) or {})
+
     model = model_cls(
         cfg.get("policy", "CnnPolicy"),
         train_env,
@@ -44,7 +49,7 @@ def run_training(cfg, model_cls):
         device=cfg.get("device", "cuda"),
         verbose=1,
         tensorboard_log=str(run_dir / "tb"),
-        **cfg.get("algo_kwargs", {}),
+        **algo_kwargs,
     )
     # Mirror stdout into a CSV (-> progress.csv) and TensorBoard event files.
     model.set_logger(configure(str(run_dir), ["stdout", "csv", "tensorboard"]))
