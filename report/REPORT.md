@@ -63,8 +63,6 @@ counter-productive on VizDoom Defend-the-Center** (stack 1 beats stack 4 by
 optimal play is dominated by spatial information already present in a
 single frame.
 
-\newpage
-
 # 1. Research question and motivation
 
 **Research question.** *Which algorithmic design choices most affect deep-RL
@@ -145,98 +143,55 @@ Mnih et al. [2015]: three convolutional layers (32 / 64 / 64 channels with
 8 × 8 / 4 × 4 / 3 × 3 kernels and strides 4 / 2 / 1) followed by a 512-unit
 MLP head and the algorithm-specific output layer.
 
-## 2.3 DQN (value-based)
+## 2.3 DQN (value-based) and PPO (policy-based)
 
-DQN [Mnih et al. 2015] approximates the optimal action-value function
-`Q*(s,a)` with a neural network `Q_θ`. Three components stabilise training
-of this off-policy bootstrapped target:
+**DQN** [Mnih et al. 2015] approximates the optimal action-value
+function $Q^*(s,a)$ with a neural network $Q_\theta$ and acts greedily
+($\epsilon$-noised) against it. Three components stabilise training: an
+**experience-replay buffer** (decorrelates SGD minibatches), a **lagged
+target network** $Q_{\theta^-}$ (provides a non-moving regression
+target $y_t = r_t + \gamma \max_{a'} Q_{\theta^-}(s_{t+1}, a')$), and an
+**$\epsilon$-greedy schedule** (linearly annealed 1 → 0.01). The loss is
+the squared TD error optimised with Adam, $\gamma = 0.99$. The Pong
+baseline (P1) uses a 500 k buffer, batch 32, `train_freq = 4`,
+target-sync every 1000 steps, $\epsilon$ annealed over the first 10 %
+of training.
 
-- **Experience replay.** Every observed transition `(s, a, r, s', done)` is
-  stored in a fixed-size buffer `D`. Each gradient update samples a minibatch
-  from `D`, decorrelating consecutive samples and bringing the data closer to
-  an i.i.d.-from-the-stationary-distribution assumption.
-- **Target network.** A *lagged* copy `Q_{θ⁻}` provides the bootstrap target
-  `y_t = r_t + γ · max_{a'} Q_{θ⁻}(s_{t+1}, a')`. Without it, the regression
-  target moves every gradient step and training is prone to divergence —
-  the so-called "moving-target" problem. `θ⁻` is hard-copied from `θ` every
-  `target_update_interval` steps.
-- **ε-greedy exploration.** The behaviour policy picks a uniformly random
-  action with probability `ε` (linearly annealed from 1 → 0.01 over a fraction
-  of training) and the greedy action otherwise.
+**PPO** [Schulman et al. 2017] directly optimises a stochastic policy
+$\pi_\theta(a|s)$ in actor–critic form with the clipped surrogate
+objective $L^{CLIP}(\theta) = \mathbb{E}_t [\min( r_t(\theta) A_t,
+\mathrm{clip}(r_t, 1-\epsilon, 1+\epsilon) A_t )]$, where
+$r_t = \pi_\theta(a_t|s_t)/\pi_{\theta_\text{old}}(a_t|s_t)$. The clip
+keeps the on-policy approximation valid for several reuse epochs.
+Advantages use GAE ($\lambda = 0.95$); the full loss adds a value-MSE
+term and an entropy bonus. Pong PPO (P5) collects 16 × 128 = 2 048
+transitions per update, 4 epochs over minibatches of 512, clip 0.1,
+LR $2.5\times10^{-4}$; VizDoom PPO uses clip 0.2. P5b uses the
+SB3-zoo Atari recipe (linear LR decay 2.5e-4 → 0, linear clip decay
+0.1 → 0, batch 256).
 
-The loss is the squared TD error
-`L(θ) = E_{(s,a,r,s')~D}[(y_t - Q_θ(s,a))^2]`, optimised with Adam, `γ = 0.99`.
-Pong-baseline (P1) settings: replay buffer 500 k, learning starts after 100 k
-transitions, batch size 32, `train_freq = 4` (one gradient step every four
-environment steps), target-network sync every 1 000 steps, ε annealed over the
-first 10 % of training to a final 0.01.
+## 2.4 Software, hardware, protocol, and AI disclosure
 
-## 2.4 PPO (policy-based)
+**Stack.** Stable-Baselines3 [Raffin et al. 2021] DQN/PPO with
+`CnnPolicy` (Nature-CNN), Gymnasium env API, `ale-py` for Atari,
+`vizdoom.gymnasium_wrapper` for VizDoom, PyTorch + CUDA 12.4.
+**Hardware.** Shared lab workstation: RTX 4090 24 GB, i7-13700K
+(24 threads), Ubuntu 24.04, conda + Python 3.12. cuDNN autotune and
+TF32 enabled.
 
-PPO [Schulman et al. 2017] directly optimises a stochastic policy `π_θ(a|s)`
-in actor–critic form alongside a value baseline `V_φ(s)`. It collects
-on-policy rollouts in parallel from many environments, then performs several
-epochs of minibatch updates on each rollout using the *clipped surrogate
-objective*
+**Protocol.** Every (config, seed) is trained from scratch with a fixed
+seed; **≥ 3 seeds per curve**. Curves show mean ± 1 SD across seeds
+on a shared interpolated timestep grid. End-of-training evaluation is
+20 deterministic episodes (no exploration); training-time `EvalCallback`
+runs every 100 k steps and keeps the best checkpoint. Pong DQN and
+Pong PPO both train for **7 M env steps** (T1's equal-budget claim);
+VizDoom is **2 M steps** (Defend-Center) or **3 M** (Health-Gathering).
+All hyperparameters are in `configs/<id>.yaml`.
 
-$$L^{CLIP}(\theta) = \mathbb{E}_t \left[ \min\big( r_t(\theta) \, A_t,\ \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon) \, A_t \big) \right]$$
-
-where `r_t(θ) = π_θ(a_t|s_t) / π_{θ_old}(a_t|s_t)` is the importance ratio
-between the new and old policies. The `clip` prevents updates that move the
-policy too far from the data-generating distribution, keeping the on-policy
-approximation valid for several reuse epochs.
-
-Advantages `A_t` are estimated with **Generalised Advantage Estimation** (GAE,
-`λ = 0.95`), which interpolates between the high-variance Monte-Carlo and the
-high-bias one-step TD estimators. The full training loss adds a value-function
-regression term and an entropy bonus to maintain exploration:
-`L = L^{CLIP} − c_v · L^V + c_e · H[π_θ]`.
-
-Rollouts are collected from `n_envs = 16` parallel environments
-(`SubprocVecEnv`) of length `n_steps = 128`, giving 2 048 transitions per
-update; each rollout is shuffled into minibatches of 512 for `n_epochs = 4`
-passes. Other settings: `γ = 0.99`, clip range `0.1` (Pong) / `0.2` (VizDoom),
-entropy coefficient `0.01`, value coefficient `0.5`, Adam learning rate
-`2.5 × 10⁻⁴`.
-
-## 2.5 Software, hardware, and AI-tool disclosure
-
-- **Stable-Baselines3** [Raffin et al. 2021] provides the DQN and PPO
-  implementations and the vectorised-environment plumbing. The `CnnPolicy`
-  selects the Nature-CNN feature extractor described in §2.2.
-- **Gymnasium** [Farama Foundation] is the environment API. Atari uses
-  `ale-py` (ROMs bundled); VizDoom uses the `vizdoom.gymnasium_wrapper`.
-- **PyTorch** with CUDA 12.4 runs the network forward / backward on the GPU.
-- Training was performed on a shared lab workstation (RTX 4090 24 GB,
-  i7-13700K = 24 threads, Ubuntu 24.04) in a Conda environment with Python
-  3.12. cuDNN autotuning and TF32 matmuls were enabled for throughput.
-
-**AI-tool disclosure (course requirement).** *Claude Code* (Anthropic) was
-used to scaffold the repository, implement the training / evaluation /
-plotting code, build the SSH + scp deployment pipeline, and draft this Methods
-section and the results-and-figure helpers for the author to review and edit.
-All experimental design, hyperparameter choices, and the analysis in §4 are
-the author's own.
-
-## 2.6 Experiment protocol
-
-Each (configuration, seed) pair is trained from scratch with a fixed seed.
-The report uses **≥ 3 seeds per curve**; learning curves show the mean and the
-± 1 standard-deviation band across seeds, computed by interpolating each seed
-onto a shared timestep grid and aggregating.
-
-At the end of training, every run is evaluated for 20 deterministic episodes
-(no exploration noise) with a fresh seed; the mean and standard deviation are
-saved to `eval.json`. During training, `EvalCallback` runs a 10-episode
-deterministic evaluation every 100 k steps and keeps the best-performing
-checkpoint, which guards against late-training instability.
-
-To make the cross-algorithm comparison fair, Pong DQN and Pong PPO are both
-trained for **7 M environment steps**. The VizDoom Defend-Center
-PPO-vs-{discrete/multidiscrete, stack 4/1} comparisons are at **2 M steps**
-each. Hyperparameters for every experiment are versioned in `configs/<id>.yaml`.
-
-\newpage
+**AI disclosure.** *Claude Code* (Anthropic) was used to scaffold the
+repository, implement training/eval/plotting code, build the SSH/scp
+deployment, and draft prose for the author to review. All experimental
+design, hyperparameter choices, and analysis in §4 are the author's own.
 
 # 3. Experiments
 
@@ -249,15 +204,15 @@ across seeds.
 
 ## 3.1 T1 — Algorithm family: DQN vs PPO
 
-**Aspect.** Value-based learning with off-policy replay (DQN) versus on-policy
-trust-region policy optimisation (PPO), at an *equal environment-step budget*,
-on **both** environments (Pong and Defend-the-Center). To make the cross-algorithm
-claim robust on Pong, two PPO hyperparameter settings are compared against DQN.
+DQN (off-policy, replay-buffer) vs PPO (on-policy, clipped surrogate)
+at an *equal environment-step budget*, on **both** environments. Two
+PPO hyperparameter settings are compared on Pong (our recipe and the
+SB3-zoo recipe) to make the cross-algorithm claim robust.
 
 ![T1a (left): Pong with DQN, original-recipe PPO (P5) and the SB3-zoo / Schulman 2017 linear-LR-decay recipe (P5b). T1b (right): Defend-the-Center with PPO (V1) and DQN (V5).](report_assets/T1_algo_family.png){ width=85% }
 
 | Algorithm / variant | Config | Task | Seeds | Mean ± SD (eval) | Budget |
-|---|---|---|---|---|---|
+|---|-----|---|---|---|---|
 | **DQN** | P1 | Pong | 3 | **+4.77 ± 6.32** | 7 M |
 | PPO (our recipe) | P5_ppo_pong | Pong | 3 | −6.58 ± 1.86 | 7 M |
 | PPO (SB3-zoo recipe) | P5b_ppo_zoo | Pong | 3 | −6.07 ± 3.13 | 7 M |
@@ -295,17 +250,10 @@ Defend-the-Center*, with PPO marginally ahead (0.52 pt) — well within DQN's
 seed-σ of 1.19. V5's higher cross-seed variance is the familiar value-based
 seed-instability story; the means are essentially tied.
 
-> **Takeaway.** **DQN beats PPO on Pong at 7 M (+4.77 vs −6.07 / −6.58)
-> robustly across two PPO recipes**, driven by replay-buffer sample
-> efficiency. **On Defend-the-Center the two are tied** (+8.85 vs +9.37),
-> suggesting the 7 M-Pong gap is a sample-efficiency effect that PPO closes
-> once the budget is generous relative to the task's difficulty.
-
 ## 3.2 T2 — DQN components on Pong (target network, ε-greedy, replay buffer)
 
-**Aspect.** Which of DQN's three stabilising components — the lagged target
-network, the ε-greedy schedule, and the size of the replay buffer — matters
-most for performance and stability on Pong?
+Which of DQN's three stabilising components — target network,
+ε-greedy schedule, replay-buffer size — matters most on Pong?
 
 ![DQN components: P1 baseline, P2 target-net OFF, P3 ε-fast / ε-slow, P4 small buffer.](report_assets/T2_dqn_components.png){ width=80% }
 
@@ -357,17 +305,11 @@ effect is dominated by training noise, not buffer correlation. **The
 component ordering — target-net ($\gg$) ε-schedule ($\approx$) buffer-size — matches
 the canonical Mnih 2015 / Hessel 2018 Rainbow ablation ordering.**
 
-> **Takeaway.** The lagged target network is by far the most important
-> DQN stabilisation component on Pong (~9.5-pt cost), followed by the
-> ε-greedy schedule (~3.6-pt cost, roughly symmetric) and replay-buffer
-> size (~0.9-pt cost). The ordering matches the published ablation
-> literature.
-
 ## 3.3 T3 — Partial observability: frame stacking on VizDoom Defend-Center
 
-**Aspect.** Does temporal context (4-frame stacking) matter more in a 3D
-first-person view, where a single frame cannot reveal projectile or enemy
-motion, than in 2D Pong?
+Does temporal context (4-frame stacking) matter more in a 3D
+first-person view, where a single frame cannot reveal projectile or
+enemy motion, than in 2D Pong?
 
 ![Defend-Center: V1 (stack 4) vs V4 (stack 1).](report_assets/T3_framestack.png){ width=70% }
 
@@ -393,20 +335,13 @@ usable temporal signal. This sharply contrasts with Pong, where frame
 stacking is essentially mandatory because ball velocity (direction *and*
 speed) is not observable from a single frame.
 
-> **Takeaway.** Frame stacking is **task-dependent**, not universal — it
-> is essential in Pong (where ball velocity is encoded in motion) but
-> actively counter-productive on Defend-the-Center (stack 1 beats stack 4 by
-> 2.4 points), where the dominant signal is already spatial within a single
-> frame.
-
 ## 3.4 T4 — Action-space design on VizDoom Defend-Center
 
-**Aspect.** The Farama VizDoom wrapper exposes a **Discrete** action space of
-single-button presses by default (`max_buttons_pressed = 1`). Setting
-`max_buttons_pressed = 0` gives a **MultiDiscrete** space that lets the agent
-press any combination of buttons at once. Does the larger combinatorial action
-space help (more expressive control) or hurt (harder credit assignment at the
-same budget)?
+The Farama VizDoom wrapper exposes **Discrete** (one button per step,
+`max_buttons_pressed = 1`) by default and **MultiDiscrete** (any
+button combination, `max_buttons_pressed = 0`) optionally. Does the
+larger combinatorial space help (more expressive) or hurt (harder
+credit assignment at equal budget)?
 
 ![Defend-Center: V1 (Discrete) vs V2 (MultiDiscrete).](report_assets/T4_actionspace.png){ width=70% }
 
@@ -425,17 +360,11 @@ for `n` available buttons) makes exploration harder. PPO is on-policy, so it
 cannot reuse exploration well across iterations; at 2 M steps it has not
 seen enough diverse rollouts to identify which button combinations help.
 
-> **Takeaway.** A smaller, well-chosen action space (Discrete with one
-> button per step) beats a strictly more expressive MultiDiscrete space at
-> equal data on Defend-the-Center, because exploration is harder in the
-> larger combinatorial space.
-
 ## 3.5 T5 — Task complexity: Defend-Center vs Health-Gathering
 
-**Aspect.** How does the final reward of the same PPO recipe scale with
-scenario difficulty? Defend-Center is a stationary-shooter scenario;
-Health-Gathering requires the agent to navigate while collecting items, with
-sparser reward.
+Does the same PPO recipe transfer across qualitatively different
+VizDoom scenarios? Defend-Center is a stationary shooter;
+Health-Gathering requires navigation with sparser reward.
 
 ![Final eval reward by VizDoom scenario.](report_assets/T5_difficulty.png){ width=60% }
 
@@ -458,26 +387,8 @@ because their reward scales differ (single-event kill rewards vs an
 accumulating survival/pickup signal). The qualitative finding is that the same **architecture
 and learning algorithm** generalise across both, with the only adjustment
 being a 50 % larger frame budget for the harder Health-Gathering task.
-
-> **Takeaway.** The same PPO recipe generalises across Defend-the-Center
-> and Health-Gathering — both scenarios are solved with very low cross-seed
-> variance — with the only required adjustment being a 50 % larger frame
-> budget for the harder Health-Gathering task.
-
-## 3.6 Qualitative examples (gameplay)
-
-Per-run `gameplay.gif` files (under `results/<id>_s0/gameplay.gif`) record one
-deterministic evaluation episode of each agent. Two are highlighted as the
-report's "examples":
-
-- **`results/P1_s0/gameplay.gif`** — Pong DQN baseline after 7 M training
-  steps. The paddle reliably tracks the ball, returns most serves, and the
-  final 20-episode evaluation averages a positive score (see T1).
-- **`results/V1_defendcenter_s0/gameplay.gif`** — VizDoom PPO on
-  Defend-the-Center after 2 M training steps. The agent rotates to face
-  incoming demons and fires when on-target, averaging ≈ 9 kills per episode.
-
-\newpage
+Qualitative `gameplay.gif` files for each run are at
+`results/<id>_s0/gameplay.gif` in the repository.
 
 # 4. Discussion
 
@@ -555,55 +466,34 @@ per task.
 
 ## 4.1 Limitations
 
-Four honest caveats. **First**, the planned round-2 re-training of all
-DQN ablations at 7 M was pre-empted by shared-GPU contention (≈ 9 h/run
-instead of the projected ≈ 3.8 h, plus one seed killed mid-training). Only
-P1 ran 3-seeds × 7 M cleanly. P2_targetoff completed 1 of 3 seeds at 7 M
-(seed 1 at +5.6); seeds 0 and 2 retain their 2 M round-1 evaluations on
-disk, so the on-disk aggregate (−6.92) mixes budgets and is not a clean
-7 M comparison. T2 is therefore reported at the **2 M ablation budget**
-where all three seeds of every variant are comparable. P1 was additionally
-extended to 7 M (+4.77) for the T1 algorithm-family comparison, which is a
-clean 7 M-vs-7 M result against both PPO variants.
+**T2 is anchored at 2 M, not 7 M.** Shared-GPU contention (≈ 9 h/run
+vs the projected ≈ 3.8 h) pre-empted the planned round-2 re-training
+of the DQN ablations at 7 M. Only P1 ran 3-seeds × 7 M cleanly;
+P2_targetoff completed 1 of 3 seeds at 7 M (+5.6), so the on-disk
+aggregate mixes budgets. T2 is therefore reported at the 2 M budget
+where every variant has all three seeds comparable; P1 was
+additionally extended to 7 M (+4.77) for the T1 comparison, which is
+a clean 7M-vs-7M result against both PPO recipes. **P4_buffersmall
+seed 0's training curve** is also dropped from the T2 figure (a brief
+concurrent-write incident in round-3 corrupted its `progress.csv`);
+its final 20-episode `eval.json` is intact and feeds the P4 row.
 
-**Second**, the **P4_buffersmall seed 0 training-curve CSV** is corrupted
-by a brief concurrent-write incident in round-3: a duplicate queue master
-was inadvertently launched and ran for ~1 minute alongside the intended
-one, with both python processes writing to the same `progress.csv`. The
-final 20-episode eval (run sequentially at the end) is unaffected
-(P4_s0 = −7.90), so the P4 aggregate in the T2 table is computed from all
-three eval.json files; only the *training curve* for s0 is dropped from
-the T2 figure (the figure averages over the surviving s1+s2). The narrative
-(P4 ≈ −5 ± 2.5, 0.9 pt worse than baseline) is robust to this seed's
-trajectory being unobservable.
-
-**Third**, the V5_dqn_defendcenter run is at the 2 M budget (matching V1's
-2 M PPO budget for a fair comparison), but Pong DQN required nearer 7 M to
-converge. We do not know what V5 would reach at 5–10 M; the +8.85 ≈ V1's
-+9.37 conclusion is specifically for the *small-budget* DC regime.
-
-**Fourth**, Pong DQN exhibits high cross-seed variance even at 7 M (P1
-σ = 6.32 across three seeds, with one seed regressing to −3.85). PPO shows
-the inverse pattern — *low* mean but also low σ under our original recipe,
-and *higher σ* (3.13) under the zoo recipe, with one zoo seed reaching
-−1.65. A larger seed budget (n ≥ 5) would tighten central estimates for
-both algorithms.
+**Budget asymmetry on Defend-Center.** V5 (DQN-DC) is at 2 M to match
+V1's PPO budget, but Pong DQN needed ≈ 7 M to converge — the T1b "tied"
+conclusion is specifically for the *small-budget* DC regime; we do not
+know what V5 would reach at 5–10 M. Pong DQN also shows high seed
+variance ($\sigma = 6.32$); a larger seed budget ($n \geq 5$) would
+tighten both DQN and PPO central estimates.
 
 ## 4.2 Future work
 
-1. **Extend Pong PPO to ~ 12–15 M steps** to test whether the SB3-zoo
-   recipe — whose LR schedule is tuned for a 10 M+ budget — closes the gap
-   to DQN once the schedule's decay-to-zero tail is given enough room. The
-   one P5b seed that reached −1.65 suggests this is at least plausible.
-2. **Extend V5 (Defend-Center DQN) to 5–10 M** to test whether DQN's slower
-   sample-efficiency on the 3D scenario eventually exceeds PPO's 2 M
-   ceiling, mirroring the Pong story at a different budget point.
-3. **Add reward normalisation (`VecNormalize`) to the VizDoom pipeline** so
-   scenarios with large-magnitude or sparse-spike rewards can be trained
-   with the same recipe more reliably.
-4. **Run more seeds for the Pong algorithm-family comparison (n ≥ 5)** to
-   sharpen both the DQN central estimate and the PPO seed-variance picture
-   that the zoo-recipe ablation surfaced.
+(i) **Extend Pong PPO to ≈ 12–15 M** to test whether the SB3-zoo
+linear-decay schedule (tuned for 10 M+) closes the gap to DQN once
+the schedule's decay-to-zero tail has room — the one zoo seed at
+−1.65 suggests this is plausible. (ii) **Extend V5 to 5–10 M** to
+test whether DQN's slower 3D sample-efficiency eventually exceeds
+PPO's 2 M ceiling on Defend-Center, mirroring the Pong story at a
+different budget point.
 
 # 5. References
 
