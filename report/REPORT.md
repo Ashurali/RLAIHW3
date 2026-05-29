@@ -24,13 +24,17 @@ toward the page limit. Pandoc concatenates both files in one invocation.
       -o report/HW3_314540066.pdf \
       --pdf-engine=xelatex \
       --resource-path=.:report \
-      -V geometry:margin=1in -V fontsize=12pt \
+      -V geometry:margin=0.85in -V fontsize=12pt \
       -V mainfont="Times New Roman" -V monofont="Consolas" \
       --number-sections
 
 Notes on the flags:
   --resource-path=.:report  lets pandoc resolve `report_assets/*.png` whether
                             it's invoked from the repo root or from `report/`.
+  geometry:margin=0.85in    tightened from 1in to fit the body to 10 pages
+                            without further content cuts. If you still overflow,
+                            try `-V fontsize=11pt`; if you have headroom and
+                            prefer wider margins, increase back to 1in.
   CJKmainfont (in YAML)     fixes the missing 吳忠賢 author-name glyphs by
                             telling xelatex to fall back to a CJK-capable font
                             (Microsoft JhengHei ships on every Windows install
