@@ -10,6 +10,16 @@ header-includes:
   - \fancyhead[L]{\textit{NYCU AI HW3 — DQN vs PPO on Atari and VizDoom}}
   - \fancyfoot[C]{\thepage}
   - \renewcommand{\headrulewidth}{0pt}
+  # Space-saving typography (no fontsize change, body stays at 12pt).
+  - \usepackage{titlesec}
+  - \titlespacing*{\section}{0pt}{0.7em}{0.35em}
+  - \titlespacing*{\subsection}{0pt}{0.55em}{0.2em}
+  - \titlespacing*{\subsubsection}{0pt}{0.4em}{0.15em}
+  - \setlength{\textfloatsep}{0.6em}
+  - \setlength{\intextsep}{0.5em}
+  - \usepackage{enumitem}
+  - \setlist{noitemsep, topsep=2pt, partopsep=0pt}
+  - \renewcommand{\arraystretch}{0.95}
 ---
 
 <!--
@@ -24,7 +34,7 @@ toward the page limit. Pandoc concatenates both files in one invocation.
       -o report/HW3_314540066.pdf \
       --pdf-engine=xelatex \
       --resource-path=.:report \
-      -V geometry:margin=0.85in -V fontsize=12pt \
+      -V geometry:margin=0.85in -V fontsize=12pt -V linestretch=0.97 \
       -V mainfont="Times New Roman" -V monofont="Consolas" \
       --number-sections
 
@@ -32,9 +42,12 @@ Notes on the flags:
   --resource-path=.:report  lets pandoc resolve `report_assets/*.png` whether
                             it's invoked from the repo root or from `report/`.
   geometry:margin=0.85in    tightened from 1in to fit the body to 10 pages
-                            without further content cuts. If you still overflow,
-                            try `-V fontsize=11pt`; if you have headroom and
-                            prefer wider margins, increase back to 1in.
+                            without dropping fontsize. Body stays at 12pt for
+                            readability. Combined with linestretch=0.97 and
+                            the titlesec/enumitem header-includes (in YAML),
+                            this saves roughly one page of vertical space.
+  linestretch=0.97          subtle 3% line-height tightening (visually
+                            indistinguishable from default).
   CJKmainfont (in YAML)     fixes the missing 吳忠賢 author-name glyphs by
                             telling xelatex to fall back to a CJK-capable font
                             (Microsoft JhengHei ships on every Windows install
@@ -218,7 +231,7 @@ at an *equal environment-step budget*, on **both** environments. Two
 PPO hyperparameter settings are compared on Pong (our recipe and the
 SB3-zoo recipe) to make the cross-algorithm claim robust.
 
-![T1a (left): Pong with DQN, original-recipe PPO (P5) and the SB3-zoo / Schulman 2017 linear-LR-decay recipe (P5b). T1b (right): Defend-the-Center with PPO (V1) and DQN (V5).](report_assets/T1_algo_family.png){ width=85% }
+![T1a (left): Pong with DQN, original-recipe PPO (P5) and the SB3-zoo / Schulman 2017 linear-LR-decay recipe (P5b). T1b (right): Defend-the-Center with PPO (V1) and DQN (V5).](report_assets/T1_algo_family.png){ width=78% }
 
 | Algorithm / variant | Config | Task | Seeds | Mean ± SD (eval) | Budget |
 |---|-----|---|---|---|---|
@@ -264,7 +277,7 @@ seed-instability story; the means are essentially tied.
 Which of DQN's three stabilising components — target network,
 ε-greedy schedule, replay-buffer size — matters most on Pong?
 
-![DQN components: P1 baseline, P2 target-net OFF, P3 ε-fast / ε-slow, P4 small buffer.](report_assets/T2_dqn_components.png){ width=80% }
+![DQN components: P1 baseline, P2 target-net OFF, P3 ε-fast / ε-slow, P4 small buffer.](report_assets/T2_dqn_components.png){ width=73% }
 
 **T2 is reported at the 2 M-step ablation budget.** All four variants below
 were trained for 2 M steps in the original round-1 pass; the round-2 attempt
@@ -320,7 +333,7 @@ Does temporal context (4-frame stacking) matter more in a 3D
 first-person view, where a single frame cannot reveal projectile or
 enemy motion, than in 2D Pong?
 
-![Defend-Center: V1 (stack 4) vs V4 (stack 1).](report_assets/T3_framestack.png){ width=70% }
+![Defend-Center: V1 (stack 4) vs V4 (stack 1).](report_assets/T3_framestack.png){ width=64% }
 
 | Frame stack | Config | Seeds | Mean ± SD (eval) | Budget |
 |---|---|---|---|---|
@@ -352,7 +365,7 @@ button combination, `max_buttons_pressed = 0`) optionally. Does the
 larger combinatorial space help (more expressive) or hurt (harder
 credit assignment at equal budget)?
 
-![Defend-Center: V1 (Discrete) vs V2 (MultiDiscrete).](report_assets/T4_actionspace.png){ width=70% }
+![Defend-Center: V1 (Discrete) vs V2 (MultiDiscrete).](report_assets/T4_actionspace.png){ width=64% }
 
 | Action space | Config | Seeds | Mean ± SD (eval) | Budget |
 |---|---|---|---|---|
@@ -375,7 +388,7 @@ Does the same PPO recipe transfer across qualitatively different
 VizDoom scenarios? Defend-Center is a stationary shooter;
 Health-Gathering requires navigation with sparser reward.
 
-![Final eval reward by VizDoom scenario.](report_assets/T5_difficulty.png){ width=60% }
+![Final eval reward by VizDoom scenario.](report_assets/T5_difficulty.png){ width=55% }
 
 | Scenario | Config | Seeds | Mean ± SD (eval) | Budget | Reward scale |
 |---|---|---|---|---|---|
