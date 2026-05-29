@@ -1,0 +1,7 @@
+{
+  "exp_id": "V3_healthgathering",
+  "seed": 0,
+  "n_eval_episodes": 20,
+  "mean_reward": 330.4,
+  "std_reward": 49.0289710273426
+}

@@ -1,0 +1,26 @@
+exp_id: P4_buffersmall
+task: pong
+algo: dqn
+env_id: ALE/Pong-v5
+policy: CnnPolicy
+n_envs: 1
+n_stack: 4
+seed: 2
+total_timesteps: 2000000
+eval_freq: 100000
+eval_episodes: 20
+checkpoint_freq: 500000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: 0.0001
+  buffer_size: 20000
+  learning_starts: 10000
+  batch_size: 32
+  gamma: 0.99
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 1000
+  exploration_fraction: 0.1
+  exploration_initial_eps: 1.0
+  exploration_final_eps: 0.01

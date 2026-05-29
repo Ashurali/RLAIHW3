@@ -1,15 +1,30 @@
+---
+title: "Comparing Value-based and Policy-based Deep RL on a 2D Arcade Game and a 3D FPS"
+subtitle: "DQN vs PPO on Atari Pong and VizDoom Defend-the-Center / Health-Gathering"
+author: "Michael Kurniawan Soegeng 吳忠賢 — 314540066"
+header-includes:
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \fancyhead[L]{\textit{NYCU AI HW3 — DQN vs PPO on Atari and VizDoom}}
+  - \fancyfoot[C]{\thepage}
+  - \renewcommand{\headrulewidth}{0pt}
+---
+
 <!--
-Pandoc command (run from repo root):
-  pandoc report/REPORT.md -o report/HW3_<STUDENT_ID>.pdf \
+Pandoc command (run from repo root). The body (REPORT.md, ~636 lines) is the
+graded 10-page report; the code appendix (APPENDIX_CODE.md) is auto-generated
+from the source tree by `python tools/build_appendix.py` and does NOT count
+toward the page limit. Pandoc concatenates both files in one invocation.
+
+  python tools/build_appendix.py        # regenerate APPENDIX_CODE.md from src
+  pandoc report/REPORT.md report/APPENDIX_CODE.md \
+      -o report/HW3_314540066.pdf \
       --pdf-engine=xelatex \
       -V geometry:margin=1in -V fontsize=12pt \
       -V mainfont="Times New Roman" -V monofont="Consolas" \
-      --number-sections --toc --toc-depth=2
+      --number-sections
 -->
-
-% AI HW3 — Comparing Value-based and Policy-based Deep RL on a 2D Arcade Game and a 3D FPS
-% **`<NAME>`**  ·  Student ID **`<STUDENT_ID>`**  ·  NYCU Artificial Intelligence (535505), Spring 2026
-% 2026-05-29
 
 ## Abstract
 
@@ -74,8 +89,7 @@ design dimension while keeping the rest fixed:
 | T4 | Action-space design | Discrete vs MultiDiscrete in VizDoom |
 | T5 | Task complexity | Final performance across VizDoom scenarios |
 
-Each thread is framed so the result yields a one-sentence message, not just a
-number. The motivation throughout is informational: the goal is not to set a
+Each thread is framed so the result yields a one-sentence message. The motivation throughout is informational: the goal is not to set a
 state-of-the-art score, but to develop *transferable intuition* about which
 RL design choices matter when, with quantitative evidence on two contrasting
 tasks.
@@ -269,7 +283,7 @@ Defend-the-Center*, with PPO marginally ahead (0.52 pt) — well within DQN's
 seed-σ of 1.19. V5's higher cross-seed variance is the familiar value-based
 seed-instability story; the means are essentially tied.
 
-> **🧑 Takeaway.** **DQN beats PPO on Pong at 7 M (+4.77 vs −6.07 / −6.58)
+> **Takeaway.** **DQN beats PPO on Pong at 7 M (+4.77 vs −6.07 / −6.58)
 > robustly across two PPO recipes**, driven by replay-buffer sample
 > efficiency. **On Defend-the-Center the two are tied** (+8.85 vs +9.37),
 > suggesting the 7 M-Pong gap is a sample-efficiency effect that PPO closes
@@ -331,7 +345,7 @@ effect is dominated by training noise, not buffer correlation. **The
 component ordering — target-net (≫) ε-schedule (≈) buffer-size — matches
 the canonical Mnih 2015 / Hessel 2018 Rainbow ablation ordering.**
 
-> **🧑 Takeaway.** The lagged target network is by far the most important
+> **Takeaway.** The lagged target network is by far the most important
 > DQN stabilisation component on Pong (~9.5-pt cost), followed by the
 > ε-greedy schedule (~3.6-pt cost, roughly symmetric) and replay-buffer
 > size (~0.9-pt cost). The ordering matches the published ablation
@@ -367,7 +381,7 @@ usable temporal signal. This sharply contrasts with Pong, where frame
 stacking is essentially mandatory because ball velocity (direction *and*
 speed) is not observable from a single frame.
 
-> **🧑 Takeaway.** Frame stacking is **task-dependent**, not universal — it
+> **Takeaway.** Frame stacking is **task-dependent**, not universal — it
 > is essential in Pong (where ball velocity is encoded in motion) but
 > actively counter-productive on Defend-the-Center (stack 1 beats stack 4 by
 > 2.4 points), where the dominant signal is already spatial within a single
@@ -399,7 +413,7 @@ for `n` available buttons) makes exploration harder. PPO is on-policy, so it
 cannot reuse exploration well across iterations; at 2 M steps it has not
 seen enough diverse rollouts to identify which button combinations help.
 
-> **🧑 Takeaway.** A smaller, well-chosen action space (Discrete with one
+> **Takeaway.** A smaller, well-chosen action space (Discrete with one
 > button per step) beats a strictly more expressive MultiDiscrete space at
 > equal data on Defend-the-Center, because exploration is harder in the
 > larger combinatorial space.
@@ -433,7 +447,7 @@ accumulating survival/pickup signal). The qualitative finding is that the same *
 and learning algorithm** generalise across both, with the only adjustment
 being a 50 % larger frame budget for the harder Health-Gathering task.
 
-> **🧑 Takeaway.** The same PPO recipe generalises across Defend-the-Center
+> **Takeaway.** The same PPO recipe generalises across Defend-the-Center
 > and Health-Gathering — both scenarios are solved with very low cross-seed
 > variance — with the only required adjustment being a 50 % larger frame
 > budget for the harder Health-Gathering task.
@@ -631,282 +645,7 @@ tools/     build_report_assets.py (this report's figures + summary.md)
 deploy/    SSH/scp workflow (server has no git)
 ```
 
-Selected code listings follow on the next pages.
-
-\newpage
-
-# Appendix B — Selected code
-
-## `common/train_core.py`
-
-```python
-"""Config-driven training loop shared by all four (task, algo) entry points."""
-from __future__ import annotations
-
-import shutil
-from pathlib import Path
-
-from stable_baselines3.common.logger import configure
-
-from common.callbacks import make_callbacks
-from common.envs import build_env_fn
-from common.eval_utils import evaluate_and_record
-from common.plotting import plot_curve
-from common.utils import (
-    configure_torch_perf,
-    get_run_dir,
-    save_config_copy,
-    set_global_seeds,
-)
-
-
-def run_training(cfg, model_cls):
-    """Train one run end-to-end and emit the standard artifact set.
-
-    Under ``results/<exp_id>_s<seed>/`` this produces: ``config.yaml``,
-    ``metrics.csv``, ``curve.png``, ``eval.json``, ``gameplay.gif``,
-    ``model.zip``, plus ``best_model/`` and ``checkpoints/``.
-    """
-    seed = int(cfg.get("seed", 0))
-    set_global_seeds(seed)
-    configure_torch_perf()
-
-    run_dir = get_run_dir(cfg["exp_id"], seed)
-    save_config_copy(cfg, run_dir)
-
-    env_fn = build_env_fn(cfg)
-    n_envs = int(cfg.get("n_envs", 1))
-    train_env = env_fn(seed=seed, n_envs=n_envs, eval_mode=False)
-    eval_env = env_fn(seed=seed + 1000, n_envs=1, eval_mode=True)
-
-    model = model_cls(
-        cfg.get("policy", "CnnPolicy"),
-        train_env,
-        seed=seed,
-        device=cfg.get("device", "cuda"),
-        verbose=1,
-        tensorboard_log=str(run_dir / "tb"),
-        **cfg.get("algo_kwargs", {}),
-    )
-    # Mirror stdout into a CSV (-> progress.csv) and TensorBoard event files.
-    model.set_logger(configure(str(run_dir), ["stdout", "csv", "tensorboard"]))
-
-    callbacks = make_callbacks(cfg, run_dir, eval_env)
-    model.learn(
-        total_timesteps=int(cfg["total_timesteps"]),
-        callback=callbacks,
-        progress_bar=True,
-    )
-
-    model.save(str(run_dir / "model"))
-    train_env.close()
-    eval_env.close()
-
-    # The plan's per-run deliverable is metrics.csv; SB3 emits progress.csv.
-    progress = run_dir / "progress.csv"
-    if progress.exists():
-        shutil.copyfile(progress, run_dir / "metrics.csv")
-
-    evaluate_and_record(
-        model, env_fn, cfg, run_dir, seed, record_gif=cfg.get("record_gif", True)
-    )
-    try:
-        plot_curve(run_dir)
-    except Exception as exc:  # noqa: BLE001
-        print(f"[train_core] curve plotting skipped: {exc}")
-
-    print(f"[train_core] done -> {run_dir}")
-    return run_dir
-```
-
-## `common/envs.py`
-
-```python
-"""Environment factories for both tasks, with a unified image front-end.
-
-Both Pong and VizDoom are turned into a ``VecFrameStack``'d image ``VecEnv`` so
-the exact same ``CnnPolicy`` code trains on each. :func:`build_env_fn` returns a
-closure ``env_fn(seed, n_envs, eval_mode, render_mode)`` that the training core
-uses for the training, evaluation and rendering environments alike.
-"""
-from __future__ import annotations
-
-from stable_baselines3.common.env_util import make_atari_env, make_vec_env
-from stable_baselines3.common.vec_env import (
-    DummyVecEnv,
-    SubprocVecEnv,
-    VecFrameStack,
-)
-
-import gymnasium as gym
-import ale_py
-gym.register_envs(ale_py)
-
-from common.vizdoom_wrappers import VizDoomScreenWrapper
-
-
-def make_atari_vec(env_id, n_envs, seed, n_stack=4, render_mode=None):
-    """Atari pipeline: AtariWrapper (grayscale/resize/skip) + frame stack."""
-    env_kwargs = {"render_mode": render_mode} if render_mode else None
-    venv = make_atari_env(env_id, n_envs=n_envs, seed=seed, env_kwargs=env_kwargs)
-    return VecFrameStack(venv, n_stack=n_stack)
-
-
-def make_vizdoom_vec(
-    env_id,
-    n_envs,
-    seed,
-    n_stack=4,
-    frame_skip=4,
-    obs_shape=(84, 84),
-    grayscale=True,
-    env_kwargs=None,
-    render_mode=None,
-):
-    """VizDoom pipeline mirroring Atari: screen -> 84x84 (+gray) + frame stack."""
-    kwargs = dict(env_kwargs or {})
-    kwargs.setdefault("frame_skip", frame_skip)
-    if render_mode:
-        kwargs["render_mode"] = render_mode
-    # SubprocVecEnv parallelises env stepping (the CPU bottleneck) for PPO;
-    # a single env (DQN / evaluation) stays in-process for simplicity.
-    vec_cls = SubprocVecEnv if n_envs > 1 else DummyVecEnv
-    venv = make_vec_env(
-        env_id,
-        n_envs=n_envs,
-        seed=seed,
-        env_kwargs=kwargs,
-        wrapper_class=VizDoomScreenWrapper,
-        wrapper_kwargs={"shape": tuple(obs_shape), "grayscale": grayscale},
-        vec_env_cls=vec_cls,
-    )
-    return VecFrameStack(venv, n_stack=n_stack)
-
-
-def build_env_fn(cfg):
-    """Return ``env_fn(seed, n_envs, eval_mode, render_mode)`` for ``cfg['task']``."""
-    task = cfg["task"]
-    if task == "pong":
-        def env_fn(seed, n_envs, eval_mode=False, render_mode=None):
-            return make_atari_vec(
-                cfg["env_id"],
-                n_envs=1 if eval_mode else n_envs,
-                seed=seed,
-                n_stack=cfg.get("n_stack", 4),
-                render_mode=render_mode,
-            )
-        return env_fn
-    if task == "vizdoom":
-        def env_fn(seed, n_envs, eval_mode=False, render_mode=None):
-            return make_vizdoom_vec(
-                cfg["env_id"],
-                n_envs=1 if eval_mode else n_envs,
-                seed=seed,
-                n_stack=cfg.get("n_stack", 4),
-                frame_skip=cfg.get("frame_skip", 4),
-                obs_shape=cfg.get("obs_shape", (84, 84)),
-                grayscale=cfg.get("grayscale", True),
-                env_kwargs=cfg.get("env_kwargs"),
-                render_mode=render_mode,
-            )
-        return env_fn
-    raise ValueError(f"Unknown task '{task}' (expected 'pong' or 'vizdoom').")
-```
-
-## `common/vizdoom_wrappers.py`
-
-```python
-"""VizDoom -> SB3 image pipeline.
-
-The Farama Gymnasium wrapper for ViZDoom returns a *Dict* observation: a
-``screen`` image plus a ``gamevariables`` vector. SB3's ``CnnPolicy`` expects a
-single image tensor, so this wrapper drops the game variables and converts the
-screen to the same 84x84 (optionally grayscale) uint8 format used for Atari.
-
-With a subsequent ``VecFrameStack(4)`` this reproduces the classic Atari DQN/PPO
-front-end, giving Pong and VizDoom an identical observation pipeline so the
-value-based vs policy-based comparison is not confounded by preprocessing.
-"""
-from __future__ import annotations
-
-import cv2
-import gymnasium as gym
-import numpy as np
-from gymnasium import spaces
-
-# Importing the wrapper module registers all "Vizdoom*-v*" Gymnasium ids as a
-# side effect. Requires vizdoom >= 1.2 (Gymnasium support).
-import vizdoom.gymnasium_wrapper  # noqa: F401
-
-
-class VizDoomScreenWrapper(gym.ObservationWrapper):
-    """Extract the screen buffer, resize it and optionally grayscale it.
-
-    Output observation: a uint8 array of shape ``(H, W, C)`` (channel-last,
-    ``C == 1`` when grayscale else ``3``). Channel-last is what SB3's
-    ``VecTransposeImage`` expects before it auto-converts to channel-first.
-    """
-
-    def __init__(self, env, shape=(84, 84), grayscale: bool = True):
-        super().__init__(env)
-        self.shape = tuple(shape)
-        self.grayscale = grayscale
-        channels = 1 if grayscale else 3
-        self.observation_space = spaces.Box(
-            low=0,
-            high=255,
-            shape=(self.shape[0], self.shape[1], channels),
-            dtype=np.uint8,
-        )
-
-    def observation(self, obs):
-        # The Dict obs carries the frame under "screen"; tolerate a bare array.
-        screen = obs["screen"] if isinstance(obs, dict) else obs
-        screen = np.asarray(screen)
-        # Normalize to channel-last (H, W, C); some screen formats are (C, H, W).
-        if screen.ndim == 3 and screen.shape[0] in (1, 3) and screen.shape[2] not in (1, 3):
-            screen = np.transpose(screen, (1, 2, 0))
-        if self.grayscale:
-            screen = cv2.cvtColor(screen, cv2.COLOR_RGB2GRAY)
-        # cv2.resize takes (width, height); self.shape is (height, width).
-        screen = cv2.resize(
-            screen, (self.shape[1], self.shape[0]), interpolation=cv2.INTER_AREA
-        )
-        if self.grayscale:
-            screen = screen[:, :, None]
-        return screen.astype(np.uint8)
-```
-
-## `configs/P1.yaml` (representative experiment config)
-
-```yaml
-# P1 - Pong DQN baseline (Tier A).
-# Reference run; also reused as a comparison arm by several ablations.
-# Run >=3 seeds for the report:  --seed 0 / 1 / 2
-exp_id: P1
-task: pong
-algo: dqn
-env_id: ALE/Pong-v5
-policy: CnnPolicy
-n_envs: 1
-n_stack: 4
-seed: 0
-total_timesteps: 7000000      # extended from 2M: 2M left the curve still rising
-eval_freq: 100000
-eval_episodes: 20
-checkpoint_freq: 500000
-device: cuda
-record_gif: true
-algo_kwargs:
-  learning_rate: 1.0e-4
-  buffer_size: 500000         # large replay buffer (~28GB RAM, frame-stacked uint8)
-  learning_starts: 100000
-  batch_size: 32
-  gamma: 0.99
-  train_freq: 4
-  gradient_steps: 1
-  target_update_interval: 1000   # lagged target network ON (P2 turns this off)
-  exploration_fraction: 0.1      # default epsilon schedule (P3 varies this)
-  exploration_initial_eps: 1.0
-  exploration_final_eps: 0.01
-```
+The full code appendix follows after this page (Appendix B). The same code
+is also browsable on GitHub at <https://github.com/Ashurali/RLAIHW3>; the
+in-PDF copy below is a frozen snapshot tied to the commit that produced the
+results in section 3.

@@ -1,0 +1,7 @@
+{
+  "exp_id": "V4_stack1",
+  "seed": 1,
+  "n_eval_episodes": 20,
+  "mean_reward": 13.0,
+  "std_reward": 2.6645825188948455
+}

@@ -1,0 +1,7 @@
+{
+  "exp_id": "P1",
+  "seed": 0,
+  "n_eval_episodes": 20,
+  "mean_reward": 11.15,
+  "std_reward": 3.902242944769072
+}

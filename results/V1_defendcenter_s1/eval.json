@@ -1,0 +1,7 @@
+{
+  "exp_id": "V1_defendcenter",
+  "seed": 1,
+  "n_eval_episodes": 20,
+  "mean_reward": 9.2,
+  "std_reward": 1.2489995996796797
+}

@@ -1,0 +1,7 @@
+{
+  "exp_id": "V5_dqn_defendcenter",
+  "seed": 2,
+  "n_eval_episodes": 20,
+  "mean_reward": 10.45,
+  "std_reward": 1.7457090250096092
+}

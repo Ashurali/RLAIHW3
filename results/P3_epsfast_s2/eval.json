@@ -1,0 +1,7 @@
+{
+  "exp_id": "P3_epsfast",
+  "seed": 2,
+  "n_eval_episodes": 20,
+  "mean_reward": -8.9,
+  "std_reward": 5.57584074378026
+}

@@ -1,0 +1,7 @@
+{
+  "exp_id": "P3_epsslow",
+  "seed": 2,
+  "n_eval_episodes": 20,
+  "mean_reward": -6.05,
+  "std_reward": 4.271709259769443
+}

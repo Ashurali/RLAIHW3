@@ -1,0 +1,7 @@
+{
+  "exp_id": "P4_buffersmall",
+  "seed": 1,
+  "n_eval_episodes": 20,
+  "mean_reward": -5.4,
+  "std_reward": 6.019966777316964
+}

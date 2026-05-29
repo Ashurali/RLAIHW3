@@ -1,0 +1,7 @@
+{
+  "exp_id": "P2_targetoff",
+  "seed": 0,
+  "n_eval_episodes": 20,
+  "mean_reward": -10.95,
+  "std_reward": 3.024483426967323
+}

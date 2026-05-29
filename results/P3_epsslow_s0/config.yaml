@@ -1,0 +1,26 @@
+exp_id: P3_epsslow
+task: pong
+algo: dqn
+env_id: ALE/Pong-v5
+policy: CnnPolicy
+n_envs: 1
+n_stack: 4
+seed: 0
+total_timesteps: 2000000
+eval_freq: 100000
+eval_episodes: 20
+checkpoint_freq: 500000
+device: cuda
+record_gif: true
+algo_kwargs:
+  learning_rate: 0.0001
+  buffer_size: 500000
+  learning_starts: 100000
+  batch_size: 32
+  gamma: 0.99
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 1000
+  exploration_fraction: 0.5
+  exploration_initial_eps: 1.0
+  exploration_final_eps: 0.01

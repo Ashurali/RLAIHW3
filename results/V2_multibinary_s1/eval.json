@@ -1,0 +1,7 @@
+{
+  "exp_id": "V2_multibinary",
+  "seed": 1,
+  "n_eval_episodes": 20,
+  "mean_reward": 7.45,
+  "std_reward": 0.9205976319760983
+}

@@ -1,0 +1,7 @@
+{
+  "exp_id": "P5_ppo_pong",
+  "seed": 0,
+  "n_eval_episodes": 20,
+  "mean_reward": -3.95,
+  "std_reward": 5.661051139143684
+}
