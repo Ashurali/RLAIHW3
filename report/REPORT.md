@@ -391,7 +391,7 @@ Health-Gathering requires navigation with sparser reward.
 ![Final eval reward by VizDoom scenario.](report_assets/T5_difficulty.png){ width=55% }
 
 | Scenario | Config | Seeds | Mean ± SD (eval) | Budget | Reward scale |
-|---|---|---|---|---|---|
+|---|------|---|---|---|---|
 | **Defend-the-Center** | V1 | 3 | **9.37 ± 0.54** | 2 M | +1 per kill (≈ 26 max) |
 | **Health-Gathering** | V3_healthgathering | 3 | **321.33 ± 6.44** | 3 M | accumulated survival + pickup reward |
 
