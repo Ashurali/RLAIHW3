@@ -2,6 +2,7 @@
 title: "Comparing Value-based and Policy-based Deep RL on a 2D Arcade Game and a 3D FPS"
 subtitle: "DQN vs PPO on Atari Pong and VizDoom Defend-the-Center / Health-Gathering"
 author: "Michael Kurniawan Soegeng 吳忠賢 — 314540066"
+CJKmainfont: "Microsoft JhengHei"
 header-includes:
   - \usepackage{fancyhdr}
   - \pagestyle{fancy}
@@ -12,18 +13,29 @@ header-includes:
 ---
 
 <!--
-Pandoc command (run from repo root). The body (REPORT.md, ~636 lines) is the
-graded 10-page report; the code appendix (APPENDIX_CODE.md) is auto-generated
-from the source tree by `python tools/build_appendix.py` and does NOT count
+Pandoc command. MUST be run from the repo root (figure paths and
+APPENDIX_CODE.md are relative to it). The body (REPORT.md) is the graded
+10-page report; the code appendix (APPENDIX_CODE.md) is auto-generated from
+the source tree by `python tools/build_appendix.py` and does NOT count
 toward the page limit. Pandoc concatenates both files in one invocation.
 
-  python tools/build_appendix.py        # regenerate APPENDIX_CODE.md from src
+  python tools/build_appendix.py
   pandoc report/REPORT.md report/APPENDIX_CODE.md \
       -o report/HW3_314540066.pdf \
       --pdf-engine=xelatex \
+      --resource-path=.:report \
       -V geometry:margin=1in -V fontsize=12pt \
       -V mainfont="Times New Roman" -V monofont="Consolas" \
       --number-sections
+
+Notes on the flags:
+  --resource-path=.:report  lets pandoc resolve `report_assets/*.png` whether
+                            it's invoked from the repo root or from `report/`.
+  CJKmainfont (in YAML)     fixes the missing 吳忠賢 author-name glyphs by
+                            telling xelatex to fall back to a CJK-capable font
+                            (Microsoft JhengHei ships on every Windows install
+                            with Traditional Chinese support; substitute
+                            "Noto Sans CJK TC" or similar on Linux/macOS).
 -->
 
 ## Abstract
@@ -242,7 +254,7 @@ trust-region policy optimisation (PPO), at an *equal environment-step budget*,
 on **both** environments (Pong and Defend-the-Center). To make the cross-algorithm
 claim robust on Pong, two PPO hyperparameter settings are compared against DQN.
 
-![T1a (left): Pong with DQN, original-recipe PPO (P5) and the SB3-zoo / Schulman 2017 linear-LR-decay recipe (P5b). T1b (right): Defend-the-Center with PPO (V1) and DQN (V5).](../report_assets/T1_algo_family.png){ width=85% }
+![T1a (left): Pong with DQN, original-recipe PPO (P5) and the SB3-zoo / Schulman 2017 linear-LR-decay recipe (P5b). T1b (right): Defend-the-Center with PPO (V1) and DQN (V5).](report_assets/T1_algo_family.png){ width=85% }
 
 | Algorithm / variant | Config | Task | Seeds | Mean ± SD (eval) | Budget |
 |---|---|---|---|---|---|
@@ -295,7 +307,7 @@ seed-instability story; the means are essentially tied.
 network, the ε-greedy schedule, and the size of the replay buffer — matters
 most for performance and stability on Pong?
 
-![DQN components: P1 baseline, P2 target-net OFF, P3 ε-fast / ε-slow, P4 small buffer.](../report_assets/T2_dqn_components.png){ width=80% }
+![DQN components: P1 baseline, P2 target-net OFF, P3 ε-fast / ε-slow, P4 small buffer.](report_assets/T2_dqn_components.png){ width=80% }
 
 **T2 is reported at the 2 M-step ablation budget.** All four variants below
 were trained for 2 M steps in the original round-1 pass; the round-2 attempt
@@ -342,7 +354,7 @@ by training-process contention rather than the small buffer itself
 the last ≈ 25 episodes of transitions so the i.i.d. assumption behind
 experience replay is weakly satisfied — but at the 2 M ablation budget the
 effect is dominated by training noise, not buffer correlation. **The
-component ordering — target-net (≫) ε-schedule (≈) buffer-size — matches
+component ordering — target-net ($\gg$) ε-schedule ($\approx$) buffer-size — matches
 the canonical Mnih 2015 / Hessel 2018 Rainbow ablation ordering.**
 
 > **Takeaway.** The lagged target network is by far the most important
@@ -357,7 +369,7 @@ the canonical Mnih 2015 / Hessel 2018 Rainbow ablation ordering.**
 first-person view, where a single frame cannot reveal projectile or enemy
 motion, than in 2D Pong?
 
-![Defend-Center: V1 (stack 4) vs V4 (stack 1).](../report_assets/T3_framestack.png){ width=70% }
+![Defend-Center: V1 (stack 4) vs V4 (stack 1).](report_assets/T3_framestack.png){ width=70% }
 
 | Frame stack | Config | Seeds | Mean ± SD (eval) | Budget |
 |---|---|---|---|---|
@@ -396,7 +408,7 @@ press any combination of buttons at once. Does the larger combinatorial action
 space help (more expressive control) or hurt (harder credit assignment at the
 same budget)?
 
-![Defend-Center: V1 (Discrete) vs V2 (MultiDiscrete).](../report_assets/T4_actionspace.png){ width=70% }
+![Defend-Center: V1 (Discrete) vs V2 (MultiDiscrete).](report_assets/T4_actionspace.png){ width=70% }
 
 | Action space | Config | Seeds | Mean ± SD (eval) | Budget |
 |---|---|---|---|---|
@@ -425,7 +437,7 @@ scenario difficulty? Defend-Center is a stationary-shooter scenario;
 Health-Gathering requires the agent to navigate while collecting items, with
 sparser reward.
 
-![Final eval reward by VizDoom scenario.](../report_assets/T5_difficulty.png){ width=60% }
+![Final eval reward by VizDoom scenario.](report_assets/T5_difficulty.png){ width=60% }
 
 | Scenario | Config | Seeds | Mean ± SD (eval) | Budget | Reward scale |
 |---|---|---|---|---|---|
@@ -513,7 +525,7 @@ make a robust 7 M-vs-7 M claim, so the comparison is anchored at 2 M.) The
 both faster and slower decays). The **replay-buffer size** matters least
 at this budget: P4 (20 k buffer) costs only ≈ 0.9 pt vs baseline, and
 within-ablation seed variance dominates the mean effect. The full ordering
-— target-net ≫ ε-schedule ≈ buffer-size — reproduces the canonical
+— target-net $\gg$ ε-schedule $\approx$ buffer-size — reproduces the canonical
 Mnih 2015 / Rainbow ablation pattern.
 
 **Observation representation is task-dependent, not universal.** The most
