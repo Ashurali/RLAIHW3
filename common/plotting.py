@@ -24,14 +24,25 @@ ASSETS_DIR = REPO_ROOT / "report_assets"
 
 
 def _load_metrics(run_dir):
-    """Return (timesteps, ep_rew_mean) arrays from a run's metrics CSV."""
+    """Return (timesteps, ep_rew_mean) arrays from a run's metrics CSV.
+
+    Coerces both columns to numeric and drops non-numeric rows. This handles
+    edge cases like concurrent-write corruption where a column might contain
+    string garbage instead of floats; we keep whatever valid rows survive.
+    Raises ValueError if no usable rows remain.
+    """
     run_dir = Path(run_dir)
     path = run_dir / "metrics.csv"
     if not path.exists():
         path = run_dir / "progress.csv"
     df = pd.read_csv(path)
-    df = df[[X_COL, Y_COL]].dropna()
-    return df[X_COL].to_numpy(), df[Y_COL].to_numpy()
+    df = df[[X_COL, Y_COL]].copy()
+    df[X_COL] = pd.to_numeric(df[X_COL], errors="coerce")
+    df[Y_COL] = pd.to_numeric(df[Y_COL], errors="coerce")
+    df = df.dropna()
+    if df.empty:
+        raise ValueError(f"No usable rows in {path}")
+    return df[X_COL].to_numpy(dtype=float), df[Y_COL].to_numpy(dtype=float)
 
 
 def plot_curve(run_dir):
@@ -54,12 +65,22 @@ def aggregate_seeds(exp_id, n_points=200):
     """Mean +/- std curve across ``results/<exp_id>_s*/`` runs.
 
     Curves are interpolated onto a shared timestep grid (the overlap of all
-    seeds) so they can be averaged even when logging cadence differs.
+    seeds) so they can be averaged even when logging cadence differs. Runs
+    with unparseable metrics CSVs (e.g. concurrent-write corruption) are
+    skipped with a printed note; the aggregate proceeds across surviving
+    seeds. Raises FileNotFoundError if NO seeds are usable.
     """
     run_dirs = sorted(glob.glob(str(RESULTS_DIR / f"{exp_id}_s*")))
     if not run_dirs:
         raise FileNotFoundError(f"No runs found for exp_id '{exp_id}'.")
-    curves = [_load_metrics(d) for d in run_dirs]
+    curves = []
+    for d in run_dirs:
+        try:
+            curves.append(_load_metrics(d))
+        except (ValueError, KeyError) as exc:
+            print(f"  [aggregate_seeds] skip {Path(d).name}: {exc}")
+    if not curves:
+        raise FileNotFoundError(f"No usable metrics CSVs for exp_id '{exp_id}'.")
     x_min = max(c[0].min() for c in curves)
     x_max = min(c[0].max() for c in curves)
     grid = np.linspace(x_min, x_max, n_points)

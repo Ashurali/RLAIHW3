@@ -7,8 +7,9 @@ Numbers are `mean ± std` of per-seed eval means. `n` = seeds used.
 
 | Task | DQN | PPO |
 |---|---|---|
-| Pong (7M each) | 4.77 ± 6.32 (n=3) | -6.58 ± 1.86 (n=3) |
-| Defend-Center (2M each) | — | 9.37 ± 0.54 (n=3) |
+| Pong (7M, original PPO recipe) | 4.77 ± 6.32 (n=3) | -6.58 ± 1.86 (n=3) |
+| Pong (7M, SB3-zoo PPO recipe) | 4.77 ± 6.32 (n=3) | -6.07 ± 3.13 (n=3) |
+| Defend-Center (2M each) | 8.85 ± 1.19 (n=3) | 9.37 ± 0.54 (n=3) |
 
 ## T2 — DQN components on Pong
 
@@ -18,7 +19,7 @@ Numbers are `mean ± std` of per-seed eval means. `n` = seeds used.
 | Target net OFF (P2) | -6.92 ± 9.04 (n=3) |
 | ε fast (P3a) | -7.73 ± 3.17 (n=3) |
 | ε slow (P3b) | -7.90 ± 4.78 (n=3) |
-| Small buffer (P4) | — |
+| Small buffer (P4) | -5.03 ± 2.50 (n=3) |
 
 ## T3 — Partial observability (frame stacking, Defend-Center)
 

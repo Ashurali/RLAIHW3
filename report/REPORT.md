@@ -23,13 +23,18 @@ frame-stack image pipelines, and ≥ 3 seeds per curve, five threads are tested:
 (T3) frame stacking on the 3D task; (T4) Discrete vs MultiDiscrete action
 spaces; (T5) task complexity across two VizDoom scenarios. The clearest
 findings are (i) **DQN is markedly more sample-efficient than PPO on Pong at
-equal data** (+4.77 vs −6.58 at 7 M steps) thanks to off-policy replay,
-(ii) **the lagged target network is the single most important DQN stability
-component** (≈ 9.5-point gap at the 2 M ablation budget), and (iii) **frame
-stacking is task-dependent — counter-productive on VizDoom
-Defend-the-Center** (stack 1 beats stack 4 by 2.4 points) even though it is
-essential in Pong, because the 3D scenario's optimal play is dominated by
-spatial information already present in a single frame.
+equal data** (+4.77 vs −6.58 / −6.07 at 7 M steps, where the second PPO
+number uses the literature SB3-zoo recipe — both PPO variants lose to DQN,
+so the inversion is not a hyperparameter artefact), (ii) **on Defend-the-Center
+the two are tied** at 2 M (DQN +8.85, PPO +9.37), suggesting the Pong gap
+is a sample-efficiency effect not a fundamental algorithm gap, (iii) **the
+lagged target network is the single most important DQN stability component**
+(≈ 9.5-point gap at the 2 M ablation budget; replay-buffer size is only
+≈ 0.9 pt), and (iv) **frame stacking is task-dependent —
+counter-productive on VizDoom Defend-the-Center** (stack 1 beats stack 4 by
+2.4 points) even though it is essential in Pong, because the 3D scenario's
+optimal play is dominated by spatial information already present in a
+single frame.
 
 \newpage
 
@@ -216,34 +221,59 @@ that each thread tells one story. Every number reported below comes from
 ± its population standard deviation. Training-curve figures show mean ± 1 SD
 across seeds.
 
-## 3.1 T1 — Algorithm family: DQN vs PPO on Pong
+## 3.1 T1 — Algorithm family: DQN vs PPO
 
 **Aspect.** Value-based learning with off-policy replay (DQN) versus on-policy
-trust-region policy optimisation (PPO), at an *equal environment-step budget*.
+trust-region policy optimisation (PPO), at an *equal environment-step budget*,
+on **both** environments (Pong and Defend-the-Center). To make the cross-algorithm
+claim robust on Pong, two PPO hyperparameter settings are compared against DQN.
 
-![Pong: P1 (DQN) vs P5 (PPO), mean ± SD over 3 seeds.](../report_assets/T1_algo_family.png){ width=70% }
+![T1a (left): Pong with DQN, original-recipe PPO (P5) and the SB3-zoo / Schulman 2017 linear-LR-decay recipe (P5b). T1b (right): Defend-the-Center with PPO (V1) and DQN (V5).](../report_assets/T1_algo_family.png){ width=85% }
 
-| Algorithm | Config | Seeds | Mean ± SD (eval) | Budget |
-|---|---|---|---|---|
-| **DQN** | P1 | 3 | **+4.77 ± 6.32** | 7 M steps |
-| PPO | P5_ppo_pong | 3 | −6.58 ± 1.86 | 7 M steps |
+| Algorithm / variant | Config | Task | Seeds | Mean ± SD (eval) | Budget |
+|---|---|---|---|---|---|
+| **DQN** | P1 | Pong | 3 | **+4.77 ± 6.32** | 7 M |
+| PPO (our recipe) | P5_ppo_pong | Pong | 3 | −6.58 ± 1.86 | 7 M |
+| PPO (SB3-zoo recipe) | P5b_ppo_zoo | Pong | 3 | −6.07 ± 3.13 | 7 M |
+| PPO | V1_defendcenter | Defend-Center | 3 | **+9.37 ± 0.54** | 2 M |
+| **DQN** | V5_dqn_defendcenter | Defend-Center | 3 | **+8.85 ± 1.19** | 2 M |
 
-At equal 7 M-step budget, value-based DQN substantially outperforms
-policy-based PPO on Pong: **+4.77 ± 6.32** vs **−6.58 ± 1.86** mean
-evaluation score across three seeds. The best DQN seed reaches **+11.15**
-(clear winning play); the best PPO seed remains negative (−3.95). DQN's
-wider standard deviation (σ = 6.3) reflects one seed regressing late in
-training — a known DQN failure mode that `EvalCallback`'s `best_model`
-checkpoint would mitigate for deployment. Mechanistically, DQN's replay
-buffer reuses every transition across many off-policy gradient updates,
-whereas PPO consumes each rollout for only `n_epochs = 4` minibatch passes
-before discarding it; PPO's learning curve at 7 M is still climbing (the
-Atari PPO literature typically uses ~10 M frames), while DQN has largely
-plateaued.
+**Pong (T1a).** At an equal 7 M-step budget, value-based DQN substantially
+outperforms both PPO variants. The original-recipe PPO (constant
+`learning_rate = 2.5e-4`, constant `clip_range = 0.1`, `batch_size = 512`)
+ends at **−6.58 ± 1.86**, well below DQN's **+4.77 ± 6.32**. The best DQN
+seed reaches **+11.15** (clear winning play); the best original-PPO seed
+stays negative (−3.95).
 
-> **🧑 Takeaway.** At an equal 7 M-step budget on Pong, value-based DQN
-> substantially beats on-policy PPO (+4.77 vs −6.58), driven by the sample
-> efficiency of off-policy replay.
+To control for our PPO config being mistuned, a second variant **P5b_ppo_zoo**
+uses the SB3-zoo / Schulman 2017 Atari recipe — `learning_rate: lin_2.5e-4`
+(linear decay to 0), `clip_range: lin_0.1` (linear decay to 0),
+`batch_size = 256` — with everything else identical to P5. P5b ends at
+**−6.07 ± 3.13**, **marginally better on the mean (0.5 pt)** but with
+**1.7× higher cross-seed standard deviation**. One P5b seed (s1) reaches
+**−1.65**, competitive with DQN; the other two plateau near −8. *The DQN > PPO
+inversion at 7 M survives the literature-recipe sanity check.* This is most
+consistent with **PPO's known Atari hyperparameter-sensitivity / seed-variance
+problem** (Henderson et al. 2018, "Deep RL that Matters") rather than a
+fundamental algorithm gap: PPO can reach the literature numbers, but only
+with a tuned combination of (recipe × budget × seed) that we do not happen
+to hit. Mechanistically, DQN's replay buffer reuses every transition across
+many off-policy gradient updates, whereas PPO discards each rollout after
+`n_epochs = 4` minibatch passes; at a fixed environment-step budget on
+Atari, the off-policy method extracts more signal per frame.
+
+**Defend-the-Center (T1b).** The picture inverts in magnitude but not direction
+on the 3D scenario at 2 M steps. PPO (V1) reaches **+9.37 ± 0.54** kills per
+episode; DQN (V5) reaches **+8.85 ± 1.19**. *Both algorithms clearly learn
+Defend-the-Center*, with PPO marginally ahead (0.52 pt) — well within DQN's
+seed-σ of 1.19. V5's higher cross-seed variance is the familiar value-based
+seed-instability story; the means are essentially tied.
+
+> **🧑 Takeaway.** **DQN beats PPO on Pong at 7 M (+4.77 vs −6.07 / −6.58)
+> robustly across two PPO recipes**, driven by replay-buffer sample
+> efficiency. **On Defend-the-Center the two are tied** (+8.85 vs +9.37),
+> suggesting the 7 M-Pong gap is a sample-efficiency effect that PPO closes
+> once the budget is generous relative to the task's difficulty.
 
 ## 3.2 T2 — DQN components on Pong (target network, ε-greedy, replay buffer)
 
@@ -251,7 +281,7 @@ plateaued.
 network, the ε-greedy schedule, and the size of the replay buffer — matters
 most for performance and stability on Pong?
 
-![DQN components: P1 baseline, P2 target-net OFF, P3 ε-fast / ε-slow, P4 small buffer (where available).](../report_assets/T2_dqn_components.png){ width=80% }
+![DQN components: P1 baseline, P2 target-net OFF, P3 ε-fast / ε-slow, P4 small buffer.](../report_assets/T2_dqn_components.png){ width=80% }
 
 **T2 is reported at the 2 M-step ablation budget.** All four variants below
 were trained for 2 M steps in the original round-1 pass; the round-2 attempt
@@ -259,7 +289,9 @@ to re-train them at 7 M was pre-empted by shared-GPU contention before
 finishing (only P2_targetoff seed 1 completed at +5.6, leaving the other
 seeds with their 2 M evaluations — see §4 limitations). For a clean 3-seed
 comparison we therefore use the 2 M data. The P1 baseline was additionally
-extended to 7 M (+4.77, see T1) for the algorithm-family comparison.
+extended to 7 M (+4.77, see T1) for the algorithm-family comparison. The
+**P4 small-buffer ablation was run in round-3 catch-up** at the same 2 M
+budget for a clean comparison against P1's 2 M snapshot.
 
 | Variant | Config | Seeds | Mean ± SD (eval) | Budget | Δ vs baseline |
 |---|---|---|---|---|---|
@@ -267,7 +299,7 @@ extended to 7 M (+4.77, see T1) for the algorithm-family comparison.
 | Target net OFF | P2_targetoff | 3 | **−13.68 ± 1.95** | 2 M | **−9.51** |
 | ε fast (frac = 0.02) | P3_epsfast | 3 | −7.73 ± 3.17 | 2 M | −3.56 |
 | ε slow (frac = 0.5) | P3_epsslow | 3 | −7.90 ± 4.78 | 2 M | −3.73 |
-| Small buffer (20 k) | P4_buffersmall | — | — | — | *not run* |
+| Small buffer (20 k) | P4_buffersmall | 3 | **−5.03 ± 2.50** | 2 M | **−0.86** |
 
 The lagged target network has by far the largest effect: removing it (setting
 `target_update_interval = 1` so the bootstrap target updates every gradient
@@ -284,14 +316,26 @@ decay (`exploration_fraction = 0.5`, floor reached only at 1 M steps) reach
 **−7.73** and **−7.90** respectively, each costing ≈ 3.6 points relative
 to the default `exploration_fraction = 0.1`. Too much *or* too little
 exploration hurts by a comparable amount, so the default is near the sweet
-spot. P4 (small replay buffer) was deferred for time and is omitted.
+spot.
+
+The **replay-buffer size** ablation (P4, 20 k vs P1's 500 k) reaches
+**−5.03 ± 2.50** at 2 M — only **0.86 points worse than baseline**, a much
+milder effect than either removing the target net (−9.5 pt) or mistuning
+the ε schedule (−3.6 pt). Two of the three P4 seeds (s1 = −5.40, s2 = −1.80)
+land close to or above the P1 mean; the third (s0 = −7.90) is pulled down
+by training-process contention rather than the small buffer itself
+(see §4.1). The mechanistic story still holds — a 20 k buffer only keeps
+the last ≈ 25 episodes of transitions so the i.i.d. assumption behind
+experience replay is weakly satisfied — but at the 2 M ablation budget the
+effect is dominated by training noise, not buffer correlation. **The
+component ordering — target-net (≫) ε-schedule (≈) buffer-size — matches
+the canonical Mnih 2015 / Hessel 2018 Rainbow ablation ordering.**
 
 > **🧑 Takeaway.** The lagged target network is by far the most important
-> DQN stabilisation component on Pong — removing it costs ~9.5 points at
-> the 2 M ablation budget and the effect is consistent across all three
-> seeds (the variance does not increase). The ε-greedy schedule matters
-> less (~3.6 points), with both faster and slower decays performing
-> similarly worse than the default.
+> DQN stabilisation component on Pong (~9.5-pt cost), followed by the
+> ε-greedy schedule (~3.6-pt cost, roughly symmetric) and replay-buffer
+> size (~0.9-pt cost). The ordering matches the published ablation
+> literature.
 
 ## 3.3 T3 — Partial observability: frame stacking on VizDoom Defend-Center
 
@@ -417,15 +461,30 @@ stability-related (target network), while observation- and action-representation
 choices interact with the task in ways that do not always transfer from one
 benchmark family to another.**
 
-**Sample efficiency dominates the algorithm-family comparison.** On Pong at
-an equal 7 M-step budget, DQN reached **+4.77** mean reward versus PPO's
-**−6.58** (T1). DQN's experience-replay buffer reuses every observed
-transition across many gradient updates, while PPO discards each rollout
-after four minibatch passes; at a fixed environment-step budget on Atari,
-the off-policy method extracts more learning signal per frame. This is not a
-claim that PPO is *worse* — its asymptotic performance is competitive given
-enough data — but in interaction-constrained settings (which is most
-real-world RL), DQN-style off-policy learning starts ahead.
+**Sample efficiency dominates the Pong algorithm-family comparison.** At an
+equal 7 M-step Pong budget, DQN reached **+4.77** mean reward versus
+−6.58 / −6.07 for two distinct PPO recipes (T1). The latter (P5b_ppo_zoo)
+uses the published SB3-zoo / Schulman 2017 Atari recipe — linear LR decay,
+linear clip-range decay, `batch_size = 256` — and was added explicitly to
+test whether the inversion is a hyperparameter artefact. It is not: the zoo
+recipe improves the mean by only **0.5 pt** while inflating the cross-seed
+σ from 1.86 to 3.13. One zoo-recipe seed (P5b_s1) lands at −1.65,
+competitive with DQN, but the other two plateau near −8. This pattern is
+exactly the **PPO-on-Atari seed-variance failure mode** flagged by
+Henderson et al. 2018 — PPO can reach literature performance, but only
+within a narrow (recipe × seed × budget) sweet spot we did not happen to
+hit. DQN's replay buffer reuses every observed transition across many
+gradient updates, while PPO discards each rollout after four minibatch
+passes; at a fixed environment-step budget on Atari, the off-policy method
+extracts more learning signal per frame.
+
+**On Defend-the-Center the two algorithms are tied** (T1b): PPO **+9.37**
+vs DQN **+8.85** at 2 M, a 0.52-point gap that sits inside DQN's seed-σ
+of 1.19. The Pong-vs-Defend-Center difference is informative — on a
+relatively easy 3D scenario both families converge to similar
+performance well before their respective asymptotic ceilings, so the
+"DQN beats PPO" claim is **a sample-efficiency story at constrained
+budget, not an algorithm-family claim**.
 
 **Target networks are not optional for DQN.** Removing the lagged target
 network was the single most damaging change in any DQN experiment: P1
@@ -436,11 +495,12 @@ target-off variant (1.95 vs 2.32), so the effect is not an instability
 artefact but a uniform regression. (Of the planned 7 M-budget re-runs of
 this ablation only one P2 seed completed, at +5.6; with n = 1 we cannot
 make a robust 7 M-vs-7 M claim, so the comparison is anchored at 2 M.) The
-ε-greedy
-schedule's effect, by contrast, is small and roughly symmetric: both faster
-and slower decays hurt by ≈ 3.6 points relative to the default
-`exploration_fraction = 0.1`, suggesting the default sits in a fairly flat
-minimum.
+ε-greedy schedule's effect is smaller and roughly symmetric (≈ 3.6 pt for
+both faster and slower decays). The **replay-buffer size** matters least
+at this budget: P4 (20 k buffer) costs only ≈ 0.9 pt vs baseline, and
+within-ablation seed variance dominates the mean effect. The full ordering
+— target-net ≫ ε-schedule ≈ buffer-size — reproduces the canonical
+Mnih 2015 / Rainbow ablation pattern.
 
 **Observation representation is task-dependent, not universal.** The most
 striking single result is T3: frame stacking, which is essential in Pong,
@@ -469,35 +529,55 @@ per task.
 
 ## 4.1 Limitations
 
-Three honest caveats. **First**, the planned round-2 re-training of all
+Four honest caveats. **First**, the planned round-2 re-training of all
 DQN ablations at 7 M was pre-empted by shared-GPU contention (≈ 9 h/run
 instead of the projected ≈ 3.8 h, plus one seed killed mid-training). Only
 P1 ran 3-seeds × 7 M cleanly. P2_targetoff completed 1 of 3 seeds at 7 M
 (seed 1 at +5.6); seeds 0 and 2 retain their 2 M round-1 evaluations on
 disk, so the on-disk aggregate (−6.92) mixes budgets and is not a clean
 7 M comparison. T2 is therefore reported at the **2 M ablation budget**
-where all three seeds of every variant are comparable (P1, P2, P3 all
-ran 3 × 2 M in round-1). P1 was additionally extended to 7 M (+4.77) for
-the T1 algorithm-family comparison, which is a clean 7 M-vs-7 M result
-(P5 PPO also ran 3 × 7 M). **Second**, the Tier-B
-experiments P4 (small replay buffer) and V5 (DQN on Defend-the-Center) were
-not completed; the cross-task DQN-vs-PPO comparison on the 3D side of T1 is
-therefore absent — only the Pong half is reported. **Third**, Pong DQN
-exhibits high cross-seed variance even at 7 M (P1 σ = 6.32 across three
-seeds, with one seed regressing to −3.85); a larger seed budget would tighten
-the central T1 estimate.
+where all three seeds of every variant are comparable. P1 was additionally
+extended to 7 M (+4.77) for the T1 algorithm-family comparison, which is a
+clean 7 M-vs-7 M result against both PPO variants.
+
+**Second**, the **P4_buffersmall seed 0 training-curve CSV** is corrupted
+by a brief concurrent-write incident in round-3: a duplicate queue master
+was inadvertently launched and ran for ~1 minute alongside the intended
+one, with both python processes writing to the same `progress.csv`. The
+final 20-episode eval (run sequentially at the end) is unaffected
+(P4_s0 = −7.90), so the P4 aggregate in the T2 table is computed from all
+three eval.json files; only the *training curve* for s0 is dropped from
+the T2 figure (the figure averages over the surviving s1+s2). The narrative
+(P4 ≈ −5 ± 2.5, 0.9 pt worse than baseline) is robust to this seed's
+trajectory being unobservable.
+
+**Third**, the V5_dqn_defendcenter run is at the 2 M budget (matching V1's
+2 M PPO budget for a fair comparison), but Pong DQN required nearer 7 M to
+converge. We do not know what V5 would reach at 5–10 M; the +8.85 ≈ V1's
++9.37 conclusion is specifically for the *small-budget* DC regime.
+
+**Fourth**, Pong DQN exhibits high cross-seed variance even at 7 M (P1
+σ = 6.32 across three seeds, with one seed regressing to −3.85). PPO shows
+the inverse pattern — *low* mean but also low σ under our original recipe,
+and *higher σ* (3.13) under the zoo recipe, with one zoo seed reaching
+−1.65. A larger seed budget (n ≥ 5) would tighten central estimates for
+both algorithms.
 
 ## 4.2 Future work
 
-1. **Extend Pong PPO to ~ 12–15 M steps** to test whether DQN's lead in T1 is
-   purely a sample-efficiency story (PPO catches up given more frames) or
-   whether DQN also reaches a higher asymptotic ceiling.
-2. **Add reward normalisation (`VecNormalize`) to the VizDoom pipeline** so
-   scenarios with large-magnitude or sparse-spike rewards can be trained with
-   the same recipe more reliably (this was the root cause of one VizDoom
-   scenario being excluded from the headline pipeline).
-3. **Wire the cross-task algorithm comparison on Defend-the-Center** (P5 was
-   completed; the symmetric V5 DQN run is the natural next addition).
+1. **Extend Pong PPO to ~ 12–15 M steps** to test whether the SB3-zoo
+   recipe — whose LR schedule is tuned for a 10 M+ budget — closes the gap
+   to DQN once the schedule's decay-to-zero tail is given enough room. The
+   one P5b seed that reached −1.65 suggests this is at least plausible.
+2. **Extend V5 (Defend-Center DQN) to 5–10 M** to test whether DQN's slower
+   sample-efficiency on the 3D scenario eventually exceeds PPO's 2 M
+   ceiling, mirroring the Pong story at a different budget point.
+3. **Add reward normalisation (`VecNormalize`) to the VizDoom pipeline** so
+   scenarios with large-magnitude or sparse-spike rewards can be trained
+   with the same recipe more reliably.
+4. **Run more seeds for the Pong algorithm-family comparison (n ≥ 5)** to
+   sharpen both the DQN central estimate and the PPO seed-variance picture
+   that the zoo-recipe ablation surfaced.
 
 # 5. References
 

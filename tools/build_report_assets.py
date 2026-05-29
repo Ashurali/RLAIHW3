@@ -92,12 +92,17 @@ def overlay_curves(exp_ids, labels, ax, title):
 # Per-thread figure builders
 # ---------------------------------------------------------------------------
 def build_T1():
+    """T1a now overlays THREE Pong curves: DQN baseline, original PPO, and the
+    SB3-zoo / Schulman 2017 literature-recipe PPO (linear LR + clip decay).
+    The zoo recipe is the sanity-check for whether the DQN > PPO inversion at
+    7 M is a hyperparameter artifact (it isn't — both PPO variants lose to DQN).
+    """
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.5))
     overlay_curves(
-        ["P1", "P5_ppo_pong"],
-        ["DQN (P1)", "PPO (P5)"],
+        ["P1", "P5_ppo_pong", "P5b_ppo_zoo"],
+        ["DQN (P1)", "PPO original (P5)", "PPO zoo recipe (P5b)"],
         axes[0],
-        "T1a — Pong: value-based vs policy-based",
+        "T1a — Pong: DQN vs PPO (two hyperparam recipes)",
     )
     overlay_curves(
         ["V1_defendcenter", "V5_dqn_defendcenter"],
@@ -203,6 +208,7 @@ def build_summary_md():
     p3b = eval_summary("P3_epsslow")
     p4 = eval_summary("P4_buffersmall")
     p5 = eval_summary("P5_ppo_pong")
+    p5b = eval_summary("P5b_ppo_zoo")
     v1 = eval_summary("V1_defendcenter")
     v2 = eval_summary("V2_multibinary")
     v3 = eval_summary("V3_healthgathering")
@@ -216,7 +222,8 @@ def build_summary_md():
     L.append("\n## T1 — Algorithm family (DQN vs PPO, equal env-step budget)\n")
     L.append("| Task | DQN | PPO |")
     L.append("|---|---|---|")
-    L.append(f"| Pong (7M each) | {fmt(p1)} | {fmt(p5)} |")
+    L.append(f"| Pong (7M, original PPO recipe) | {fmt(p1)} | {fmt(p5)} |")
+    L.append(f"| Pong (7M, SB3-zoo PPO recipe) | {fmt(p1)} | {fmt(p5b)} |")
     L.append(f"| Defend-Center (2M each) | {fmt(v5)} | {fmt(v1)} |")
 
     L.append("\n## T2 — DQN components on Pong\n")
