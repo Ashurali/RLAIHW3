@@ -104,6 +104,11 @@ state-of-the-art score, but to develop *transferable intuition* about which
 RL design choices matter when, with quantitative evidence on two contrasting
 tasks.
 
+All code, configs, trained-run artifacts (`eval.json`, `metrics.csv`,
+`gameplay.gif`), and the figures in this report are available at
+<https://github.com/Ashurali/RLAIHW3>. The full source listing is also
+reproduced verbatim as **Appendix B** for offline reading.
+
 # 2. Methods
 
 This section describes the two tasks, the shared image-processing pipeline,
